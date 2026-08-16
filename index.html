@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Marlow 🧭 — your plan, your priorities</title>
+<title>Wren 🧭 — your plan, your priorities</title>
 <meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -246,6 +246,12 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
   z-index:70;opacity:0;pointer-events:none;transition:.2s;max-width:88vw;text-align:center}
 #toast.on{opacity:1;transform:translateX(-50%)}
 .srch{width:100%;margin-bottom:14px}
+.reply{padding:0 14px 12px 46px;width:100%}
+.reply .prev{font-size:12.5px;color:var(--ink-2);line-height:1.5;margin-bottom:6px}
+.reply .prev .when{color:var(--muted)}
+.rform{display:flex;gap:6px}
+.rform input{flex:1;font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink)}
+.rform input:focus{outline:none;border-color:var(--accent)}
 .card.decisions{border-color:var(--warning)}
 .item.dec .opts{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 12px 46px;width:100%}
 .item.dec{flex-wrap:wrap}
@@ -265,7 +271,7 @@ ul.moved{margin:0;padding:10px 14px 10px 30px;font-size:12.5px;color:var(--muted
 <!-- ============ GATE ============ -->
 <div id="gate">
   <div class="gate-card">
-    <h1 id="gTitle"><span class="logo">🧭</span> Marlow</h1>
+    <h1 id="gTitle"><span class="logo">🧭</span> Wren</h1>
     <p class="sub" id="gSub">Enter your passphrase to unlock.</p>
 
     <div id="gSetup" class="hide">
@@ -310,7 +316,7 @@ ul.moved{margin:0;padding:10px 14px 10px 30px;font-size:12.5px;color:var(--muted
 <div id="app" class="hide">
   <header>
     <div class="hrow">
-      <div class="brand"><span class="logo" aria-hidden="true">🧭</span><span><span class="nm">Marlow</span><small id="hSub">—</small></span></div>
+      <div class="brand"><span class="logo" aria-hidden="true">🧭</span><span><span class="nm">Wren</span><small id="hSub">—</small></span></div>
       <div class="pill" id="syncPill"><span class="dot"></span><span id="syncTxt">…</span></div>
       <button class="iconbtn" id="btnSettings" aria-label="Settings">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -843,6 +849,26 @@ function pageNow() {
   return h;
 }
 
+/* ---------- replies: Chad types a clarification or answer on the spot; it reaches the agents via the briefs ---------- */
+function replyBox(i) {
+  const last = (i.replies || []).slice(-2);
+  return '<div class="reply">' +
+    (last.length ? '<div class="prev">' + last.map(r => '<div><span class="when">' + fmtDate(String(r.at).slice(0, 10)) + '</span> ' + esc(r.text) +
+        (r.seen ? ' <span class="chip">seen by ' + esc(r.seen) + '</span>' : ' <span class="chip">to the agents</span>') + '</div>').join('') + '</div>' : '') +
+    '<form class="rform" data-reply="' + i.id + '"><input type="text" placeholder="Reply to Wren — a clarification, an answer, an update…" autocomplete="off">' +
+    '<button type="submit" class="opt">Send</button></form></div>';
+}
+document.addEventListener('submit', ev => {
+  const f = ev.target.closest('form[data-reply]');
+  if (!f) return;
+  ev.preventDefault();
+  const i = byId()[Number(f.dataset.reply)]; const inp = f.querySelector('input');
+  const text = (inp.value || '').trim();
+  if (!i || !text) return;
+  mutate(() => { i.replies = (i.replies || []).concat([{ at: new Date().toISOString(), text: text, by: 'Chad' }]); touch(i); }, 'dp: reply #' + i.id);
+  toast('Sent to Wren — the agents see it within the hour');
+});
+
 /* ---------- the engine's focus: your 1-2 priorities, and what is on hold ---------- */
 function focusBlock() {
   const f = S.plan.focus;
@@ -855,7 +881,7 @@ function focusBlock() {
       pri.map((o, n) => itemRow(o.i, { rank: n + 1, hideStatus: true, headline: true }) +
         '<div class="fwhy" title="' + esc(o.x.why_calc || '') + '">' + esc(o.x.why || '') +
         (o.x.set_by && o.x.set_by !== 'engine' ? ' <span class="chip">set by ' + esc(o.x.set_by) + (o.x.engine_agrees === false ? ' · engine would pick differently' : '') + '</span>' : '') +
-        '</div>').join('') + '</div>';
+        '</div>' + replyBox(o.i)).join('') + '</div>';
   }
   const dec = (f.decisions || []).map(d => ({ d, i: m[d.id] })).filter(o => o.i && !o.i.deleted && isOpen(o.i) && !o.i.answer && inArea(o.i));
   if (dec.length) {
@@ -868,6 +894,7 @@ function focusBlock() {
           (o.i.recommendation ? '<div class="why">DP suggests: ' + esc(o.i.recommendation.length > 140 ? o.i.recommendation.slice(0, 139) + '\u2026' : o.i.recommendation) + '</div>' : '') + '</button>' +
         (o.i.options && o.i.options.length ? '<div class="opts">' + o.i.options.map((op, n) => '<button class="opt" data-decide="' + o.i.id + '" data-opt="' + n + '">' + esc(op) + '</button>').join('') +
           '<button class="opt ghost" data-decide="' + o.i.id + '" data-opt="-1">Other…</button></div>' : '<div class="opts"><button class="opt ghost" data-decide="' + o.i.id + '" data-opt="-1">Record the decision…</button></div>') +
+        replyBox(o.i) +
       '</div>').join('') + '</div>';
   }
   const taken = items().filter(i => i.decision && i.answer && inArea(i)).sort((a, b) => (b.updated || '').localeCompare(a.updated || '')).slice(0, 5);
@@ -1067,6 +1094,7 @@ function openSheet(id) {
       '<div class="two" style="margin-top:6px"><div class="field"><label>Options (one per line)</label><textarea id="fOptions" rows="3">' + esc((i.options || []).join('\n')) + '</textarea></div>' +
       '<div class="field"><label>Recommendation</label><textarea id="fRec" rows="3">' + esc(i.recommendation || '') + '</textarea></div></div>' +
       (i.answer ? '<div class="hint">Decided: <b>' + esc(i.answer) + '</b></div>' : '') + '</div>' : '') +
+    ((i.replies || []).length ? '<div class="field"><label>Your replies</label><div class="hint">' + i.replies.map(r => fmtDate(String(r.at).slice(0, 10)) + ' — ' + esc(r.text)).join('<br>') + '</div></div>' : '') +
     '<div class="hint" style="color:var(--muted)">Was row ' + (i.legacy_row || '—') + ' in the workbook' + (i.updated ? ' · last changed ' + fmtDate(i.updated.slice(0, 10)) : '') + '</div>';
 
   $('#shFoot').innerHTML =
@@ -1330,7 +1358,7 @@ const gate = {
     $('#gSetup').classList.toggle('hide', !this.setupOpen);
     $('#gSetupToggle').classList.toggle('hide', this.setupOpen);
     $('#gRepo').value = S.cfg.repo; $('#gToken').value = S.cfg.token; $('#gPath').value = S.cfg.path;
-    $('#gTitle').innerHTML = this.setupOpen ? '<span class="logo">🧭</span> Connect your plan' : '<span class="logo">🧭</span> Marlow';
+    $('#gTitle').innerHTML = this.setupOpen ? '<span class="logo">🧭</span> Connect your plan' : '<span class="logo">🧭</span> Wren';
     $('#gSub').textContent = this.setupOpen
       ? 'One-time setup. Everything is stored encrypted; the passphrase never leaves this device.'
       : 'Enter your passphrase to unlock.';
@@ -1416,7 +1444,7 @@ async function unlock() {
 /* PWA manifest, inlined */
 try {
   const icon = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='#2a78d6'/><text x='256' y='344' font-family='system-ui,sans-serif' font-size='300' text-anchor='middle'>🧭</text></svg>");
-  const mf = { name:'Marlow — your plan, your priorities', short_name:'Marlow', start_url:'.', scope:'.', display:'standalone',
+  const mf = { name:'Wren — your plan, your priorities', short_name:'Wren', start_url:'.', scope:'.', display:'standalone',
                background_color:'#f9f9f7', theme_color:'#f9f9f7',
                icons:[{ src: icon, sizes:'512x512', type:'image/svg+xml', purpose:'any' }] };
   const l = document.createElement('link');
