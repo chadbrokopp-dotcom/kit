@@ -244,6 +244,11 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
   z-index:70;opacity:0;pointer-events:none;transition:.2s;max-width:88vw;text-align:center}
 #toast.on{opacity:1;transform:translateX(-50%)}
 .srch{width:100%;margin-bottom:14px}
+.card.focus{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)}
+.fwhy{padding:0 14px 12px 46px;font-size:12.5px;color:var(--muted);line-height:1.45}
+.item.hold .hb{color:var(--ink-2)}
+.item.hold.late .why b{color:var(--critical)}
+ul.moved{margin:0;padding:10px 14px 10px 30px;font-size:12.5px;color:var(--muted);line-height:1.6}
 </style>
 </head>
 <body>
@@ -608,6 +613,8 @@ function mergePlans(mine, theirs) {
     if (mine.refreshed) out.refreshed = mine.refreshed;
   }
   if (!out.north_star || !Object.keys(out.north_star).length) out.north_star = mine.north_star || theirs.north_star;
+  // the engine's focus block (priorities, holds ledger) — whichever side computed it last
+  if (mine.focus && ((mine.focus.stamp || '') > ((theirs.focus || {}).stamp || ''))) out.focus = mine.focus;
   out.updated = new Date().toISOString();
   return out;
 }
@@ -771,6 +778,8 @@ function pageNow() {
     tile(blk.length, 'Blocked', 'var(--serious)') +
     tile(over.length, 'Overdue', 'var(--critical)') + '</div>';
 
+  h += focusBlock();
+
   h += '<h2 class="sec">Do now <span class="note">top 5 unblocked, by priority</span></h2>' +
        '<div class="card">' + (list.length
          ? list.slice(0, 5).map((i, n) => itemRow(i, { rank: n + 1, why: true, hideStatus: true })).join('')
@@ -790,6 +799,44 @@ function pageNow() {
     if (blk.length) b += '<h2 class="sec">Blocked by another task</h2><div class="card">' +
       blk.sort((a, c) => scoreOf(c) - scoreOf(a)).map(i => itemRow(i, { why: true })).join('') + '</div>';
     h += section('attn', 'Needs attention', over.length ? over.length + ' overdue' : '', b, true, attention.length);
+  }
+  return h;
+}
+
+/* ---------- the engine's focus: your 1-2 priorities, and what is on hold ---------- */
+function focusBlock() {
+  const f = S.plan.focus;
+  if (!f || !f.as_of) return '';
+  const m = byId();
+  let h = '';
+  const pri = (f.priorities || []).map(x => ({ x, i: m[x.id] })).filter(o => o.i && !o.i.deleted && inArea(o.i));
+  if (pri.length) {
+    h += '<h2 class="sec">Your priorities <span class="note">' + (pri.length === 1 ? 'the one thing' : 'the two things') + ' · as of ' + fmtDate(f.as_of) + '</span></h2><div class="card focus">' +
+      pri.map((o, n) => itemRow(o.i, { rank: n + 1, hideStatus: true }) +
+        '<div class="fwhy"><b>Why:</b> ' + esc(o.x.why || '') +
+        (o.x.set_by && o.x.set_by !== 'engine' ? ' <span class="chip">set by ' + esc(o.x.set_by) + (o.x.engine_agrees === false ? ' · engine would pick differently' : '') + '</span>' : '') +
+        '</div>').join('') + '</div>';
+  }
+  const holds = (f.holds || []).filter(x => x.kind !== 'project' || !S.area);
+  const parked = holds.filter(x => x.kind === 'hold' && !(x.unlocks || []).length && /^parked/.test(String(x.held_by)));
+  const shown = holds.filter(x => parked.indexOf(x) < 0 && (x.kind === 'project' || !x.id || (m[x.id] && inArea(m[x.id]))));
+  if (shown.length || parked.length) {
+    const KIND = { blocked: 'blocked', waiting: 'waiting on', hold: 'on hold', project: 'project' };
+    let b = '<div class="card">' + shown.map(x => {
+      const i = x.id ? m[x.id] : null;
+      return '<div class="item hold' + (x.chase_overdue ? ' late' : '') + '">' +
+        '<' + (i ? 'button class="item-main" data-open="' + x.id + '"' : 'div class="item-main"') + '>' +
+          '<div class="t">' + (i ? esc(i.title) : esc(x.what)) + '</div>' +
+          '<div class="meta"><span class="chip">' + KIND[x.kind] + '</span>' +
+            '<span class="hb">← ' + esc(String(x.held_by).slice(0, 140)) + '</span></div>' +
+          '<div class="why">' + (x.days != null ? x.days + ' d' : '') +
+            (x.chase ? ' · chase ' + fmtDate(x.chase) + (x.chase_overdue ? ' — <b>overdue</b>' : '') : '') +
+            ((x.unlocks || []).length ? ' · unlocks ' + x.unlocks.slice(0, 4).map(u => '#' + u).join(', ') : '') + '</div>' +
+        '</' + (i ? 'button' : 'div') + '></div>';
+    }).join('') + '</div>';
+    if (parked.length) b += '<div class="note" style="padding:8px 4px">' + parked.length + ' more on hold with no reason recorded: ' + parked.map(x => '#' + x.id).join(', ') + '</div>';
+    if (f.changes && f.changes.length) b += '<h2 class="sec">What moved</h2><div class="card"><ul class="moved">' + f.changes.slice(0, 8).map(c => '<li>' + esc(c) + '</li>').join('') + '</ul></div>';
+    h += section('holds', 'On hold — and the hold-up', 'who or what is holding each one, since when, chase-by', b, false, shown.length + parked.length);
   }
   return h;
 }
