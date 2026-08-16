@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DP — Development Plan</title>
+<meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="DP">
+<meta name="robots" content="noindex, nofollow">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%232a78d6'/%3E%3Ctext x='90' y='122' font-family='system-ui,sans-serif' font-size='84' font-weight='600' fill='%23fff' text-anchor='middle'%3EDP%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  color-scheme: light;
+  --plane:#f9f9f7; --surface:#fcfcfb; --surface-2:#f2f1ed;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --line:#e1e0d9; --ring:rgba(11,11,11,.10);
+  --accent:#2a78d6; --accent-soft:#cde2fb;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --success-text:#006300;
+  --shadow:0 1px 2px rgba(11,11,11,.05), 0 8px 24px rgba(11,11,11,.06);
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#232322;
+    --ink:#fff; --ink-2:#c3c2b7; --muted:#898781;
+    --line:#2c2c2a; --ring:rgba(255,255,255,.10);
+    --accent:#3987e5; --accent-soft:#184f95;
+    --success-text:#0ca30c;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#232322;
+  --ink:#fff; --ink-2:#c3c2b7; --muted:#898781;
+  --line:#2c2c2a; --ring:rgba(255,255,255,.10);
+  --accent:#3987e5; --accent-soft:#184f95;
+  --success-text:#0ca30c;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--plane); color:var(--ink);
+  font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+  padding-bottom:env(safe-area-inset-bottom);
+  overscroll-behavior-y:none;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:none;padding:0;text-align:left;font-family:inherit}
+a{color:var(--accent)}
+.hide{display:none !important}
+
+/* ---------- gate (setup / unlock) ---------- */
+#gate{position:fixed;inset:0;background:var(--plane);display:flex;align-items:center;justify-content:center;padding:24px;z-index:50;overflow:auto}
+.gate-card{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--ring);border-radius:16px;padding:24px;box-shadow:var(--shadow)}
+.gate-card h1{margin:0 0 4px;font-size:20px;letter-spacing:-.01em}
+.gate-card p.sub{margin:0 0 20px;color:var(--ink-2);font-size:13.5px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:5px}
+.field .hint{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.45}
+input[type=text],input[type=password],input[type=date],input[type=number],select,textarea{
+  width:100%;background:var(--plane);border:1px solid var(--line);border-radius:9px;
+  padding:10px 11px;color:var(--ink);outline:none;font-size:15px
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+textarea{resize:vertical;min-height:76px;line-height:1.5}
+.btn{display:inline-flex;align-items:center;justify-content:center;text-align:center;gap:7px;background:var(--accent);color:#fff;
+  border-radius:9px;padding:11px 16px;font-weight:600;font-size:14.5px;width:100%}
+.btn.ghost{background:var(--surface-2);color:var(--ink)}
+.btn.danger{background:var(--critical);color:#fff}
+.btn:active{opacity:.85}
+.btn[disabled]{opacity:.5;pointer-events:none}
+.row-btns{display:flex;gap:8px;margin-top:6px}
+.err{color:var(--critical);font-size:13px;margin-top:10px;display:none}
+.err.on{display:block}
+details.adv{margin-top:8px}
+details.adv summary{cursor:pointer;font-size:13px;color:var(--ink-2);padding:6px 0}
+
+/* ---------- app chrome ---------- */
+header{
+  position:sticky;top:0;z-index:20;background:color-mix(in srgb, var(--plane) 88%, transparent);
+  backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid var(--line);
+  padding:calc(env(safe-area-inset-top) + 10px) 16px 0
+}
+.hrow{display:flex;align-items:center;gap:10px;max-width:900px;margin:0 auto}
+.brand{font-weight:650;font-size:17px;letter-spacing:-.01em;margin-right:auto}
+.brand small{display:block;font-weight:400;font-size:11.5px;color:var(--muted);letter-spacing:0}
+.iconbtn{flex:none;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--ink-2);background:var(--surface-2)}
+.iconbtn:active{background:var(--line)}
+.pill{font-size:11.5px;font-weight:600;padding:5px 9px;border-radius:99px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap;display:flex;align-items:center;gap:5px}
+.pill .dot{width:7px;height:7px;border-radius:99px;background:var(--muted)}
+.pill.ok .dot{background:var(--good)} .pill.busy .dot{background:var(--warning)}
+.pill.off .dot{background:var(--serious)} .pill.bad .dot{background:var(--critical)}
+nav.tabs{display:flex;gap:3px;max-width:900px;margin:10px auto 0;overflow-x:auto;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{padding:8px 12px 10px;font-size:14px;font-weight:550;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
+nav.tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs button .n{font-size:11.5px;color:var(--muted);margin-left:4px}
+nav.tabs .gap{flex:0 0 14px;border-left:1px solid var(--line);margin:6px 8px 10px}
+@media (min-width:720px){nav.tabs .gap{flex:1 1 auto;border-left:none;margin:0}}
+
+/* ---------- collapsible page sections ---------- */
+.blk{margin:26px 0 0}
+.blk:first-child{margin-top:0}
+.blkhd{display:flex;align-items:baseline;gap:8px;width:100%;padding:4px 0 9px}
+.blkhd .caret{align-self:center;color:var(--muted);transition:transform .15s;flex:none;display:flex}
+.blkhd.open .caret{transform:rotate(90deg)}
+.blkhd h2{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:650}
+.blkhd .note{font-size:12px;color:var(--muted);font-weight:400}
+.blkhd .n{margin-left:auto;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* ---------- project cards ---------- */
+.proj{background:var(--surface);border:1px solid var(--ring);border-radius:var(--r);margin-bottom:12px;overflow:hidden}
+.proj-hd{display:flex;gap:10px;align-items:flex-start;padding:13px 14px;width:100%}
+.proj-hd .caret{color:var(--muted);transition:transform .15s;flex:none;margin-top:3px;display:flex}
+.proj-hd.open .caret{transform:rotate(90deg)}
+.proj-hd .nm{flex:1;min-width:0}
+.proj-hd .nm b{display:flex;align-items:center;gap:7px;font-size:15px;font-weight:650;letter-spacing:-.01em}
+.proj-hd .nm .head{display:block;font-size:13px;color:var(--ink-2);margin-top:5px;line-height:1.45}
+.proj-hd .nm .upd{display:block;font-size:11.5px;color:var(--muted);margin-top:6px}
+.hdot{width:9px;height:9px;border-radius:99px;flex:none}
+.proj-bd{border-top:1px solid var(--line);padding:2px 0 0}
+.pblock{padding:12px 14px;border-bottom:1px solid var(--line)}
+.pblock:last-child{border-bottom:none}
+.pblock h4{margin:0 0 7px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:650}
+.pblock ul{margin:0;padding-left:17px}
+.pblock li{margin:0 0 6px;font-size:13.5px;line-height:1.5;color:var(--ink-2)}
+.pblock li:last-child{margin-bottom:0}
+.pblock p{margin:0;font-size:13.5px;line-height:1.5;color:var(--ink-2)}
+.pblock code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+  background:var(--surface-2);padding:1px 5px;border-radius:5px}
+.pblock.warn{background:color-mix(in srgb,var(--warning) 11%,transparent)}
+.pblock.warn h4{color:var(--ink-2)}
+.ptasks{padding:0}
+.ptasks .item{padding-left:14px}
+.src{font-size:11.5px;color:var(--muted);padding:10px 14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.srch{width:100%;margin-bottom:4px}
+.banner{display:flex;gap:10px;align-items:center;background:color-mix(in srgb,var(--warning) 20%,var(--surface));
+  border:1px solid var(--ring);border-radius:var(--r);padding:11px 13px;margin-bottom:14px;font-size:13.5px}
+.banner .t{flex:1;line-height:1.45}
+.banner button{background:var(--ink);color:var(--plane);border-radius:8px;padding:8px 13px;font-size:13px;font-weight:600;flex:none}
+.setrow{display:flex;align-items:center;gap:9px;background:var(--surface-2);border-radius:9px;padding:11px 12px;font-size:13.5px}
+.setrow .ok{color:var(--success-text);font-weight:600}
+.setrow .no{color:var(--muted)}
+.setrow button{margin-left:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  padding:7px 12px;font-size:13px;font-weight:550;flex:none}
+main{max-width:900px;margin:0 auto;padding:16px 16px 96px}
+
+/* ---------- stat tiles ---------- */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}
+.tile{background:var(--surface);border:1px solid var(--ring);border-radius:var(--r);padding:11px 12px;text-align:left}
+.tile .v{font-size:22px;font-weight:650;letter-spacing:-.02em;line-height:1.1}
+.tile .k{font-size:11.5px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:4px}
+.tile .k .dot{width:6px;height:6px;border-radius:99px;flex:none}
+@media (max-width:520px){.tiles{grid-template-columns:repeat(2,1fr)}}
+
+/* ---------- sections ---------- */
+h2.sec{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+  margin:22px 0 9px;font-weight:650;display:flex;align-items:baseline;gap:8px}
+h2.sec:first-child{margin-top:0}
+h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:var(--r);overflow:hidden}
+.empty{padding:22px 14px;text-align:center;color:var(--muted);font-size:13.5px}
+
+/* ---------- task rows ---------- */
+.item{display:flex;gap:11px;padding:11px 13px;border-bottom:1px solid var(--line);align-items:flex-start;width:100%;text-align:left}
+.item:last-child{border-bottom:none}
+.item:active{background:var(--surface-2)}
+.check{flex:none;width:22px;height:22px;border-radius:99px;border:1.75px solid var(--line);
+  display:grid;place-items:center;margin-top:1px;color:transparent;background:var(--surface)}
+.check:active{transform:scale(.9)}
+.check.done{background:var(--good);border-color:var(--good);color:#fff}
+.item-main{min-width:0;flex:1}
+.t{font-size:14.5px;line-height:1.4;overflow-wrap:anywhere}
+.item.is-done .t{text-decoration:line-through;color:var(--muted)}
+.meta{display:flex;flex-wrap:wrap;gap:5px 8px;margin-top:5px;font-size:11.5px;color:var(--muted);align-items:center}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:99px;background:var(--surface-2);font-weight:550;font-size:11px}
+.chip .dot{width:6px;height:6px;border-radius:99px;flex:none}
+.chip.due-over{background:color-mix(in srgb,var(--critical) 14%,transparent);color:var(--critical)}
+.chip.due-soon{background:color-mix(in srgb,var(--warning) 22%,transparent);color:var(--ink-2)}
+.chip.blocked{background:color-mix(in srgb,var(--serious) 18%,transparent);color:var(--ink-2)}
+.why{font-size:11.5px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
+.rank{flex:none;width:22px;text-align:center;font-size:13px;font-weight:700;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.score{flex:none;width:44px;text-align:right;margin-top:1px}
+.score .n{font-size:13.5px;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.score .bar{height:3px;border-radius:2px;background:var(--line);margin-top:4px;overflow:hidden}
+.score .bar i{display:block;height:100%;background:var(--accent);border-radius:2px}
+
+/* ---------- tree ---------- */
+.node{border-bottom:1px solid var(--line)}
+.node:last-child{border-bottom:none}
+.grp{display:flex;gap:9px;align-items:center;padding:10px 13px;width:100%;text-align:left}
+.grp:active{background:var(--surface-2)}
+.grp .caret{flex:none;width:16px;color:var(--muted);transition:transform .15s}
+.grp.open .caret{transform:rotate(90deg)}
+.grp .lbl{flex:1;min-width:0}
+.grp .lbl b{display:block;font-size:14px;font-weight:600;letter-spacing:-.005em}
+.grp .lbl span{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+.grp .cnt{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.kids{border-top:1px solid var(--line);background:color-mix(in srgb,var(--surface-2) 45%,transparent)}
+.kids .kids{margin-left:0}
+.d1{padding-left:26px} .d2{padding-left:39px} .d3{padding-left:52px} .d4{padding-left:65px}
+.typetag{font-size:9.5px;font-weight:700;letter-spacing:.06em;color:var(--muted);border:1px solid var(--line);
+  border-radius:4px;padding:0 4px;line-height:15px;display:inline-block;flex:none}
+
+/* ---------- detail sheet ---------- */
+#scrim{position:fixed;inset:0;background:rgba(11,11,11,.42);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s}
+#scrim.on{opacity:1;pointer-events:auto}
+#sheet{position:fixed;left:0;right:0;bottom:0;z-index:61;background:var(--surface);
+  border-radius:18px 18px 0 0;box-shadow:var(--shadow);max-height:92vh;display:flex;flex-direction:column;
+  transform:translateY(101%);transition:transform .24s cubic-bezier(.32,.72,0,1)}
+#sheet.on{transform:none}
+@media (min-width:720px){
+  #sheet{left:50%;right:auto;bottom:auto;top:50%;width:620px;max-height:86vh;border-radius:16px;
+    transform:translate(-50%,-46%) scale(.98);opacity:0;transition:opacity .18s, transform .18s}
+  #sheet.on{transform:translate(-50%,-50%);opacity:1}
+}
+.sheet-hd{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);flex:none}
+.sheet-hd .ttl{font-weight:650;font-size:15px;margin-right:auto}
+.sheet-bd{overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch}
+.sheet-ft{padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);display:flex;gap:8px;flex:none}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.seg button{text-align:center;padding:7px 11px;border-radius:8px;background:var(--surface-2);font-size:13px;font-weight:550;color:var(--ink-2)}
+.seg button.on{background:var(--accent);color:#fff}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.four{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+@media (max-width:480px){.four{grid-template-columns:1fr 1fr}}
+.calcbox{background:var(--surface-2);border-radius:9px;padding:10px 12px;font-size:12.5px;color:var(--ink-2);
+  margin-top:10px;font-variant-numeric:tabular-nums;line-height:1.55}
+.crumb{font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.45}
+
+/* ---------- fab & toast ---------- */
+#fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:30;
+  width:52px;height:52px;border-radius:99px;background:var(--accent);color:#fff;display:grid;place-items:center;
+  box-shadow:0 6px 20px rgba(42,120,214,.4)}
+#toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);bottom:calc(22px + env(safe-area-inset-bottom));
+  background:var(--ink);color:var(--plane);padding:10px 16px;border-radius:99px;font-size:13.5px;font-weight:550;
+  z-index:70;opacity:0;pointer-events:none;transition:.2s;max-width:88vw;text-align:center}
+#toast.on{opacity:1;transform:translateX(-50%)}
+.srch{width:100%;margin-bottom:14px}
+</style>
+</head>
+<body>
+
+<!-- ============ GATE ============ -->
+<div id="gate">
+  <div class="gate-card">
+    <h1 id="gTitle">Development Plan</h1>
+    <p class="sub" id="gSub">Enter your passphrase to unlock.</p>
+
+    <div id="gSetup" class="hide">
+      <div class="field">
+        <label for="gRepo">GitHub repository</label>
+        <input type="text" id="gRepo" placeholder="chadbrokopp/dp-plan" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="hint">The private repo that stores your encrypted plan, as <b>owner/name</b>.</div>
+      </div>
+      <div class="field">
+        <label for="gToken">GitHub access token</label>
+        <input type="password" id="gToken" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
+        <div class="hint">Fine-grained token with Contents: Read and write on that repo only. Stored on this device, never sent anywhere but GitHub.</div>
+      </div>
+      <details class="adv">
+        <summary>Advanced</summary>
+        <div class="field" style="margin-top:8px">
+          <label for="gPath">File path in the repo</label>
+          <input type="text" id="gPath" value="plan.enc.json" autocapitalize="off" spellcheck="false">
+        </div>
+      </details>
+    </div>
+
+    <div class="field">
+      <label for="gPass">Passphrase</label>
+      <input type="password" id="gPass" placeholder="Your passphrase" autocomplete="current-password">
+      <div class="hint" id="gPassHint">Everything is encrypted with this before it leaves your device. It is never sent to GitHub — if you lose it, the data cannot be recovered.</div>
+    </div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink-2);margin:2px 0 16px">
+      <input type="checkbox" id="gRemember" checked style="width:auto;margin:0">
+      Stay unlocked on this device
+    </label>
+
+    <button class="btn" id="gGo">Unlock</button>
+    <div class="err" id="gErr"></div>
+    <div class="row-btns">
+      <button class="btn ghost" id="gSetupToggle" style="margin-top:10px">Change connection settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hide">
+  <header>
+    <div class="hrow">
+      <div class="brand">Development Plan<small id="hSub">—</small></div>
+      <div class="pill" id="syncPill"><span class="dot"></span><span id="syncTxt">…</span></div>
+      <button class="iconbtn" id="btnSettings" aria-label="Settings">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+    <nav class="tabs" id="filters"></nav>
+  </header>
+  <div id="banner" class="hide" style="max-width:900px;margin:14px auto -2px;padding:0 16px"></div>
+  <main id="view"></main>
+  <button id="fab" aria-label="Add task">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+</div>
+
+<div id="scrim"></div>
+<div id="sheet">
+  <div class="sheet-hd">
+    <div class="ttl" id="shTitle">Task</div>
+    <button class="iconbtn" id="shClose" aria-label="Close">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="sheet-bd" id="shBody"></div>
+  <div class="sheet-ft" id="shFoot"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   DP — encrypted, GitHub-backed development plan
+   Data never leaves this device unencrypted.
+   ============================================================ */
+
+const $  = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k)    { try { localStorage.removeItem(k); } catch (e) {} }
+};
+const K = { cfg:'dp.cfg', cache:'dp.cache', sha:'dp.sha', pass:'dp.pass', ui:'dp.ui' };
+
+/* ---------- base64 <-> bytes (chunked, UTF-8 safe) ---------- */
+function b64enc(bytes) {
+  let s = '', C = 0x8000;
+  for (let i = 0; i < bytes.length; i += C) s += String.fromCharCode.apply(null, bytes.subarray(i, i + C));
+  return btoa(s);
+}
+function b64dec(str) {
+  const bin = atob(String(str).replace(/\s+/g, ''));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+const TE = new TextEncoder(), TD = new TextDecoder();
+
+/* ---------- crypto: PBKDF2-SHA256 -> AES-GCM-256 ---------- */
+const KDF_ITER = 250000;
+async function deriveKey(pass, salt, iter) {
+  const base = await crypto.subtle.importKey('raw', TE.encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: iter || KDF_ITER, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function encryptPlan(plan, pass) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await deriveKey(pass, salt, KDF_ITER);
+  const ct   = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, TE.encode(JSON.stringify(plan)));
+  return JSON.stringify({
+    dp: 1,
+    note: 'Encrypted with AES-GCM-256; key from PBKDF2-SHA256. Without the passphrase this file is not readable.',
+    kdf: { alg: 'PBKDF2-SHA256', iter: KDF_ITER, salt: b64enc(salt) },
+    iv: b64enc(iv), ct: b64enc(new Uint8Array(ct))
+  }, null, 1);
+}
+async function decryptPlan(text, pass) {
+  const env = JSON.parse(text);
+  if (!env || env.dp !== 1) throw new Error('Not a DP file');
+  const key = await deriveKey(pass, b64dec(env.kdf.salt), env.kdf.iter);
+  const pt  = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64dec(env.iv) }, key, b64dec(env.ct));
+  return JSON.parse(TD.decode(pt));
+}
+
+/* ---------- GitHub contents API ---------- */
+function ghHeaders(token) {
+  return { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+}
+function ghUrl(cfg) {
+  return 'https://api.github.com/repos/' + cfg.repo + '/contents/' + encodeURIComponent(cfg.path).replace(/%2F/g, '/');
+}
+async function ghGet(cfg) {
+  const r = await fetch(ghUrl(cfg) + '?ref=' + encodeURIComponent(cfg.branch || 'main') + '&t=' + Date.now(),
+                        { headers: ghHeaders(cfg.token), cache: 'no-store' });
+  if (r.status === 404) return null;
+  if (r.status === 401 || r.status === 403) throw new Error('GitHub rejected the token (' + r.status + '). Check it has Contents access to ' + cfg.repo + '.');
+  if (!r.ok) throw new Error('GitHub read failed (' + r.status + ')');
+  const j = await r.json();
+  return { text: TD.decode(b64dec(j.content || '')), sha: j.sha };
+}
+async function ghPut(cfg, text, sha, message) {
+  const body = { message: message || 'dp: update', content: b64enc(TE.encode(text)), branch: cfg.branch || 'main' };
+  if (sha) body.sha = sha;
+  const r = await fetch(ghUrl(cfg), { method: 'PUT', headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders(cfg.token)), body: JSON.stringify(body) });
+  if (r.status === 409 || r.status === 422) { const e = new Error('conflict'); e.conflict = true; throw e; }
+  if (!r.ok) throw new Error('GitHub write failed (' + r.status + ')');
+  const j = await r.json();
+  return j.content.sha;
+}
+
+/* ============================================================
+   LOCAL FILE  —  plan.json in the DP folder, on this computer
+   The app treats it as a replica: written on every change, read and
+   merged on every open. GitHub stays the encrypted copy for the phone.
+   ============================================================ */
+const FS_OK = typeof window.showOpenFilePicker === 'function';
+const IDB = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      if (IDB.db) return res(IDB.db);
+      const r = indexedDB.open('dp', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => { IDB.db = r.result; res(IDB.db); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  async get(k) {
+    const db = await IDB.open();
+    return new Promise((res, rej) => {
+      const t = db.transaction('kv').objectStore('kv').get(k);
+      t.onsuccess = () => res(t.result); t.onerror = () => rej(t.error);
+    });
+  },
+  async set(k, v) {
+    const db = await IDB.open();
+    return new Promise((res, rej) => {
+      const t = db.transaction('kv', 'readwrite').objectStore('kv').put(v, k);
+      t.onsuccess = () => res(); t.onerror = () => rej(t.error);
+    });
+  },
+  async del(k) {
+    const db = await IDB.open();
+    return new Promise((res) => {
+      const t = db.transaction('kv', 'readwrite').objectStore('kv').delete(k);
+      t.onsuccess = () => res(); t.onerror = () => res();
+    });
+  }
+};
+const FILE = {
+  handle: null, name: null, ready: false,
+  async load() {
+    if (!FS_OK) return null;
+    try { FILE.handle = await IDB.get('planFile') || null; } catch (e) { FILE.handle = null; }
+    if (FILE.handle) FILE.name = FILE.handle.name;
+    return FILE.handle;
+  },
+  async perm(ask) {
+    if (!FILE.handle) return 'denied';
+    const opts = { mode: 'readwrite' };
+    let p = await FILE.handle.queryPermission(opts);
+    if (p !== 'granted' && ask) p = await FILE.handle.requestPermission(opts);
+    FILE.ready = (p === 'granted');
+    return p;
+  },
+  async pick() {                                   // needs a user gesture
+    const [h] = await window.showOpenFilePicker({
+      types: [{ description: 'Plan', accept: { 'application/json': ['.json'] } }],
+      multiple: false
+    });
+    FILE.handle = h; FILE.name = h.name;
+    await IDB.set('planFile', h);
+    await FILE.perm(true);
+    return h;
+  },
+  async read() {
+    if (!FILE.ready) return null;
+    try {
+      const txt = await (await FILE.handle.getFile()).text();
+      if (!txt.trim()) return null;
+      const p = JSON.parse(txt);
+      return p && p.items ? p : null;
+    } catch (e) { return null; }
+  },
+  async write(plan) {
+    if (!FILE.ready) return false;
+    try {
+      const w = await FILE.handle.createWritable();
+      await w.write(JSON.stringify(plan, null, 1));
+      await w.close();
+      return true;
+    } catch (e) { S.fileErr = e.message; return false; }
+  },
+  async forget() { FILE.handle = null; FILE.name = null; FILE.ready = false; await IDB.del('planFile'); }
+};
+
+/* ============================================================
+   MODEL
+   ============================================================ */
+const S = {
+  plan: null, sha: null, pass: null, cfg: null,
+  area: null, q: '', showDone: false,
+  dirty: false, syncing: false, err: null, open: {}, sec: {},
+  fileDirty: false, fileErr: null, gen: 0
+};
+const TYPE_NAME = { A:'Area', O:'Objective', M:'Milestone', D:'Deliverable', S:'Set', G:'Group', W:'Work package', T:'Task', c:'Contingency', X:'Section' };
+const STATUSES  = ['Active','Waiting','Hold','Ongoing','Done','Dropped'];
+const CLOSED    = ['Done','Dropped'];
+const STATUS_COLOR = { Active:'var(--accent)', Waiting:'var(--warning)', Hold:'var(--muted)', Ongoing:'var(--good)', Done:'var(--muted)', Dropped:'var(--muted)', '':'var(--muted)' };
+
+const byId  = () => { const m = {}; (S.plan.items || []).forEach(i => m[i.id] = i); return m; };
+const items = () => (S.plan.items || []).filter(i => !i.deleted);
+
+function todayISO() { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+function fmtDate(iso) { if (!iso) return ''; const p = iso.split('-'); return p[2] + '.' + p[1] + '.' + p[0]; }
+function daysTo(iso) { if (!iso) return null; return Math.round((new Date(iso + 'T00:00:00') - new Date(todayISO() + 'T00:00:00')) / 86400000); }
+
+function evcOf(i) {
+  const v = [i.up, i.pup, i.dn, i.pdn];
+  if (v.some(x => x === null || x === undefined || x === '')) return null;
+  return Math.round((i.up * i.pup - i.dn * i.pdn) * 10) / 10;
+}
+function rawOf(i) {
+  const e = evcOf(i);
+  if (e === null || i.urgency === null || i.urgency === undefined || i.urgency === '') return null;
+  const eff = Math.max(Number(i.effort_h) || 1, 0.5);
+  return Math.round((i.urgency * e / eff) * 10) / 10;
+}
+/* One 0-10 scale for everything. Typed priorities are already 0-10; computed
+   scores are mapped through a saturating curve so a 2-hour urgent task can't
+   score 19.8 against a hand-typed 10. Order is preserved exactly. */
+function scoreOf(i) {
+  if (i.scoring === 'manual') { const n = Number(i.manual_score); return isFinite(n) ? n : 0; }
+  const r = rawOf(i);
+  if (r === null) return 0;
+  if (r <= 0) return 0;
+  return Math.round(10 * (1 - Math.exp(-r / 8)) * 10) / 10;
+}
+function whyOf(i) {
+  if (i.scoring === 'manual') return 'priority ' + (i.manual_score ?? 0) + ' — set by you';
+  const e = evcOf(i), r = rawOf(i);
+  if (e === null) return 'not scored yet';
+  return 'urgency ' + i.urgency + ' × value ' + e + ' ÷ ' + (Number(i.effort_h) || 1) + 'h';
+}
+function blockersOf(i) {
+  const m = byId();
+  return (i.blocked_by || []).map(id => m[id]).filter(b => b && !b.deleted && CLOSED.indexOf(b.status) < 0);
+}
+const isBlocked = i => blockersOf(i).length > 0;
+const isTask    = i => i.type === 'T' || i.type === 'c';
+const isOpen    = i => CLOSED.indexOf(i.status) < 0;
+function isOverdue(i) { return i.due && isOpen(i) && i.status !== 'Ongoing' && daysTo(i.due) < 0; }
+
+function doNow() {
+  return items()
+    .filter(i => isTask(i) && i.status === 'Active' && !isBlocked(i) && scoreOf(i) > 0)
+    .filter(i => !S.area || i.area === S.area)
+    .sort((a, b) => scoreOf(b) - scoreOf(a) || (a.due || '9999').localeCompare(b.due || '9999') || a.id - b.id);
+}
+function childrenOf(id) { return items().filter(i => i.parent === id); }
+function descendants(id, acc) { acc = acc || []; childrenOf(id).forEach(c => { acc.push(c); descendants(c.id, acc); }); return acc; }
+function pathOf(i) { const m = byId(), out = []; let p = i.parent; while (p != null && m[p]) { out.unshift(m[p]); p = m[p].parent; } return out; }
+
+/* ============================================================
+   PERSISTENCE
+   ============================================================ */
+let saveTimer = null;
+function touch(i) { i.updated = new Date().toISOString(); }
+function mutate(fn, msg) {
+  fn();
+  S.plan.updated = new Date().toISOString();
+  S.dirty = true;
+  S.gen = (S.gen || 0) + 1;
+  S.fileDirty = true;
+  cacheLocal();
+  render();
+  clearTimeout(fileTimer);
+  fileTimer = setTimeout(writeFile, 250);          // the disk copy first — it is instant
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => push(msg), 900);    // then GitHub, for the other devices
+}
+let fileTimer = null;
+async function writeFile() {
+  if (!FILE.ready || !S.fileDirty) return;
+  const gen = S.gen;
+  const ok = await FILE.write(S.plan);
+  if (ok && S.gen === gen) S.fileDirty = false;
+  else if (ok) { clearTimeout(fileTimer); fileTimer = setTimeout(writeFile, 200); }
+  setSync();
+}
+async function cacheLocal() {
+  try { LS.set(K.cache, await encryptPlan(S.plan, S.pass)); LS.set(K.sha, S.sha); } catch (e) {}
+}
+function mergePlans(mine, theirs) {
+  const out = JSON.parse(JSON.stringify(theirs));
+  const m = {}; out.items.forEach((i, ix) => m[i.id] = ix);
+  mine.items.forEach(i => {
+    const ix = m[i.id];
+    if (ix === undefined) { out.items.push(i); return; }
+    const a = i.updated || '', b = out.items[ix].updated || '';
+    if (a > b) out.items[ix] = i;
+  });
+  out.next_id = Math.max(mine.next_id || 0, theirs.next_id || 0, ...out.items.map(i => i.id + 1));
+  // plan-level blocks (the project cards) belong to whichever side was refreshed last
+  if ((mine.refreshed || '') >= (theirs.refreshed || '')) {
+    if (mine.projects) out.projects = mine.projects;
+    if (mine.refreshed) out.refreshed = mine.refreshed;
+  }
+  if (!out.north_star || !Object.keys(out.north_star).length) out.north_star = mine.north_star || theirs.north_star;
+  out.updated = new Date().toISOString();
+  return out;
+}
+async function push(message) {
+  if (!S.dirty || S.syncing) return;
+  if (!navigator.onLine) { setSync('off', 'Offline'); return; }
+  S.syncing = true; S.err = null; setSync('busy', 'Saving…');
+  try {
+    // Snapshot the change counter with the bytes we are about to send, so an edit
+    // made while this write is in flight is not silently marked as saved.
+    let gen  = S.gen || 0;
+    let text = await encryptPlan(S.plan, S.pass);
+    try {
+      S.sha = await ghPut(S.cfg, text, S.sha, message || 'dp: update');
+    } catch (e) {
+      if (!e.conflict) throw e;
+      const remote = await ghGet(S.cfg);
+      const theirs = await decryptPlan(remote.text, S.pass);
+      S.plan = mergePlans(S.plan, theirs);
+      S.fileDirty = true;                        // the merged-in edits must reach the disk file too
+      gen  = S.gen || 0;
+      text = await encryptPlan(S.plan, S.pass);
+      S.sha = await ghPut(S.cfg, text, remote.sha, 'dp: merge');
+      toast('Merged a change from another device');
+    }
+    if ((S.gen || 0) === gen) {
+      S.dirty = false;
+      setSync('ok', 'Saved');
+    } else {
+      setSync('busy', 'Saving…');            // more edits arrived mid-flight
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => push(message), 250);
+    }
+    await cacheLocal();
+    if (S.fileDirty) await writeFile();          // no-op unless a file is connected
+    render();
+  } catch (e) {
+    S.err = e.message;
+    setSync('bad', 'Not saved');
+    toast(e.message);
+  } finally { S.syncing = false; }
+}
+async function pull(quiet) {
+  if (!navigator.onLine) { setSync('off', 'Offline'); return; }
+  if (S.syncing) return;
+  S.syncing = true;
+  if (!quiet) setSync('busy', 'Checking…');
+  const gen0 = S.gen || 0;
+  try {
+    const remote = await ghGet(S.cfg);
+    if (remote && remote.sha !== S.sha) {
+      const theirs = await decryptPlan(remote.text, S.pass);
+      S.plan = (S.dirty || (S.gen || 0) !== gen0) ? mergePlans(S.plan, theirs) : theirs;
+      S.sha = remote.sha;
+      await cacheLocal();
+      if (FILE.ready) { S.fileDirty = true; await writeFile(); }   // phone edits land on disk
+      render();
+    }
+    setSync(S.dirty ? 'busy' : 'ok', S.dirty ? 'Unsaved' : 'Up to date');
+  } catch (e) {
+    setSync('bad', 'Sync error');
+  } finally { S.syncing = false; if (S.dirty) push(); }
+}
+let syncState = ['ok', 'Up to date'];
+function setSync(cls, txt) {
+  if (cls) syncState = [cls, txt];
+  let [c, t] = syncState;
+  if (FILE.ready) t = (S.fileDirty ? 'Saving\u2026' : 'Saved') + ' \u00b7 ' + (c === 'ok' ? 'synced' : t.toLowerCase());
+  const p = $('#syncPill'); p.className = 'pill ' + c; $('#syncTxt').textContent = t;
+}
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 2600);
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+function dueChip(i) {
+  if (!i.due) return '';
+  const d = daysTo(i.due);
+  let cls = '', label = fmtDate(i.due);
+  if (isOverdue(i)) { cls = 'due-over'; label = 'Overdue ' + fmtDate(i.due); }
+  else if (d !== null && d <= 7 && isOpen(i)) { cls = 'due-soon'; label = d === 0 ? 'Due today' : (d === 1 ? 'Due tomorrow' : 'Due in ' + d + 'd'); }
+  return '<span class="chip ' + cls + '">' + esc(label) + '</span>';
+}
+function statusChip(i) {
+  if (!i.status) return '';
+  return '<span class="chip"><i class="dot" style="background:' + STATUS_COLOR[i.status] + '"></i>' + esc(i.status) + '</span>';
+}
+function blockChip(i) {
+  const b = blockersOf(i);
+  if (!b.length) return '';
+  return '<span class="chip blocked">Blocked by ' + b.map(x => '#' + x.id).join(', ') + '</span>';
+}
+function itemRow(i, opts) {
+  opts = opts || {};
+  const sc = scoreOf(i), done = !isOpen(i);
+  return '' +
+  '<div class="item' + (done ? ' is-done' : '') + '">' +
+    (opts.rank ? '<div class="rank">' + opts.rank + '</div>' : '') +
+    '<button class="check' + (done ? ' done' : '') + '" data-check="' + i.id + '" aria-label="Toggle done">' +
+      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' +
+    '</button>' +
+    '<button class="item-main" data-open="' + i.id + '">' +
+      '<div class="t">' + esc(i.title) + '</div>' +
+      '<div class="meta">' +
+        (opts.hideStatus ? '' : statusChip(i)) + dueChip(i) + blockChip(i) +
+        (i.area && !S.area ? '<span class="chip">' + esc(i.area) + '</span>' : '') +
+        (i.waiting_on ? '<span>' + esc(String(i.waiting_on).slice(0, 70)) + '</span>' : '') +
+      '</div>' +
+      (opts.why ? '<div class="why">' + esc(whyOf(i)) + '</div>' : '') +
+    '</button>' +
+    (opts.score !== false && isTask(i) ?
+      '<div class="score"><div class="n">' + (sc ? sc.toFixed(1) : '—') + '</div>' +
+      '<div class="bar"><i style="width:' + Math.max(0, Math.min(100, sc * 10)) + '%"></i></div></div>' : '') +
+  '</div>';
+}
+
+function md(t) {
+  return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+function tile(v, k, color) {
+  return '<div class="tile"><div class="v">' + v + '</div><div class="k"><i class="dot" style="background:' + color + '"></i>' + k + '</div></div>';
+}
+function section(key, title, note, body, defOpen, count) {
+  const open = S.sec[key] === undefined ? defOpen : S.sec[key];
+  return '<section class="blk">' +
+    '<button class="blkhd' + (open ? ' open' : '') + '" data-sec="' + key + '">' +
+      '<span class="caret"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></span>' +
+      '<h2>' + title + '</h2>' + (note ? '<span class="note">' + note + '</span>' : '') +
+      (count != null ? '<span class="n">' + count + '</span>' : '') +
+    '</button>' + (open ? '<div class="blkbd">' + body + '</div>' : '') +
+  '</section>';
+}
+const inArea = i => !S.area || i.area === S.area;
+
+/* ---------- the page ---------- */
+function pageSearch() {
+  const q = S.q.trim().toLowerCase();
+  const hits = items().filter(i =>
+    (i.title + ' ' + (i.notes || '') + ' ' + (i.waiting_on || '')).toLowerCase().indexOf(q) >= 0);
+  return '<h2 class="sec">' + hits.length + ' match' + (hits.length === 1 ? '' : 'es') + '</h2>' +
+    '<div class="card">' + (hits.length ? hits.map(i => itemRow(i)).join('') : '<div class="empty">No matches.</div>') + '</div>';
+}
+
+function pageNow() {
+  const list = doNow();
+  const all  = items().filter(inArea);
+  const act  = all.filter(i => isTask(i) && i.status === 'Active');
+  const wait = all.filter(i => isTask(i) && i.status === 'Waiting');
+  const blk  = act.filter(isBlocked);
+  const over = all.filter(isOverdue);
+
+  let h = '<div class="tiles">' +
+    tile(act.length, 'Active', 'var(--accent)') +
+    tile(wait.length, 'Waiting', 'var(--warning)') +
+    tile(blk.length, 'Blocked', 'var(--serious)') +
+    tile(over.length, 'Overdue', 'var(--critical)') + '</div>';
+
+  h += '<h2 class="sec">Do now <span class="note">top 5 unblocked, by priority</span></h2>' +
+       '<div class="card">' + (list.length
+         ? list.slice(0, 5).map((i, n) => itemRow(i, { rank: n + 1, why: true, hideStatus: true })).join('')
+         : '<div class="empty">Nothing active and unblocked here.</div>') + '</div>';
+
+  if (list.length > 5) {
+    h += section('next', 'Next up', '', '<div class="card">' +
+      list.slice(5, 14).map((i, n) => itemRow(i, { rank: n + 6, why: true, hideStatus: true })).join('') +
+      '</div>', true, list.length - 5);
+  }
+  const attention = over.concat(wait).concat(blk);
+  if (attention.length) {
+    let b = '';
+    if (over.length) b += '<div class="card" style="margin-bottom:10px">' + over.map(i => itemRow(i)).join('') + '</div>';
+    if (wait.length) b += '<h2 class="sec">Waiting on someone else</h2><div class="card" style="margin-bottom:10px">' +
+      wait.sort((a, c) => (a.due || '9999').localeCompare(c.due || '9999')).map(i => itemRow(i, { hideStatus: true })).join('') + '</div>';
+    if (blk.length) b += '<h2 class="sec">Blocked by another task</h2><div class="card">' +
+      blk.sort((a, c) => scoreOf(c) - scoreOf(a)).map(i => itemRow(i, { why: true })).join('') + '</div>';
+    h += section('attn', 'Needs attention', over.length ? over.length + ' overdue' : '', b, true, attention.length);
+  }
+  return h;
+}
+
+/* ---------- projects ---------- */
+const HEALTH = { green: 'var(--good)', amber: 'var(--warning)', red: 'var(--critical)' };
+const HEALTH_WORD = { green: 'On track', amber: 'Needs a decision', red: 'At risk' };
+
+function projectCard(p) {
+  const m = byId();
+  const tasks = (p.tasks || []).map(id => m[id]).filter(t => t && !t.deleted && isTask(t));
+  const openT = tasks.filter(isOpen);
+  const key = 'p:' + p.key;
+  const open = S.sec[key] === undefined ? false : S.sec[key];
+  const list = (arr) => '<ul>' + arr.map(x => '<li>' + md(x) + '</li>').join('') + '</ul>';
+
+  let body = '';
+  if (p.note) body += '<div class="pblock warn"><h4>Worth settling</h4><p>' + md(p.note) + '</p></div>';
+  if (p.state && p.state.length)   body += '<div class="pblock"><h4>Where it stands</h4>' + list(p.state) + '</div>';
+  if (p.milestone)                 body += '<div class="pblock"><h4>Next milestone</h4><p>' + md(p.milestone) + '</p></div>';
+  if (p.actions && p.actions.length) body += '<div class="pblock"><h4>Top next actions</h4>' + list(p.actions) + '</div>';
+  if (p.blockers && p.blockers.length) body += '<div class="pblock"><h4>Blockers / waiting on</h4>' + list(p.blockers) + '</div>';
+  if (openT.length) body += '<div class="pblock ptasks"><h4 style="padding:12px 14px 7px">Its tasks in the plan</h4>' +
+      openT.sort((a, b) => scoreOf(b) - scoreOf(a)).map(i => itemRow(i)).join('') + '</div>';
+  if (p.source) body += '<div class="src">' + esc(p.source) + '</div>';
+
+  return '<div class="proj">' +
+    '<button class="proj-hd' + (open ? ' open' : '') + '" data-sec="' + key + '">' +
+      '<span class="caret"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></span>' +
+      '<span class="nm">' +
+        '<b><i class="hdot" style="background:' + (HEALTH[p.health] || 'var(--muted)') + '"></i>' + esc(p.name) +
+          '<span style="font-weight:400;font-size:11.5px;color:var(--muted)">' + (HEALTH_WORD[p.health] || '') + '</span></b>' +
+        '<span class="head">' + md(p.headline || '') + '</span>' +
+        '<span class="upd">Updated ' + fmtDate(p.updated) + ' · ' + openT.length + ' open task' + (openT.length === 1 ? '' : 's') + '</span>' +
+      '</span>' +
+    '</button>' +
+    (open ? '<div class="proj-bd">' + body + '</div>' : '') +
+  '</div>';
+}
+
+function pageProjects() {
+  const ps = (S.plan.projects || []).filter(p => !S.area || p.area === S.area);
+  if (!ps.length) return '';
+  const stale = (S.plan.refreshed || '').slice(0, 10);
+  return section('projects', 'Your projects',
+    stale ? 'read from your files on ' + fmtDate(stale) : '',
+    ps.map(projectCard).join(''), true, ps.length);
+}
+
+function pagePersonal() {
+  const linked = {};
+  (S.plan.projects || []).forEach(p => (p.tasks || []).forEach(t => linked[t] = 1));
+  const rest = items().filter(i => isTask(i) && isOpen(i) && !linked[i.id] && inArea(i))
+                      .sort((a, b) => scoreOf(b) - scoreOf(a));
+  if (!rest.length) return '';
+  return section('personal', 'Everything else', 'not part of a project',
+    '<div class="card">' + rest.map(i => itemRow(i)).join('') + '</div>', true, rest.length);
+}
+
+function pageGoals() {
+  const ns = S.plan.north_star || {};
+  const q = (ns.quarter || []).filter(r => r.id);
+  const g = (ns.goals_2032 || []).filter(r => r.id);
+  if (!q.length && !g.length) return '';
+  let b = '<div class="card">' + q.map(r =>
+    '<div class="item"><div class="item-main"><div class="t">' + esc(r.goal) + '</div><div class="meta">' +
+    '<span class="chip">' + esc(r.id) + '</span>' +
+    (r.status ? '<span class="chip"><i class="dot" style="background:' + (STATUS_COLOR[r.status] || 'var(--muted)') + '"></i>' + esc(r.status) + '</span>' : '') +
+    (r.due ? '<span class="chip">' + esc(fmtDate(String(r.due).slice(0, 10))) + '</span>' : '') +
+    (r.measure ? '<span>' + esc(r.measure) + '</span>' : '') + '</div></div></div>').join('') + '</div>';
+  b += '<h2 class="sec">2032</h2><div class="card">' + g.map(r =>
+    '<div class="item"><div class="item-main"><div class="t">' + esc(r.goal) + '</div><div class="meta">' +
+    '<span class="chip">' + esc(r.id) + '</span>' + (r.domain ? '<span class="chip">' + esc(r.domain) + '</span>' : '') +
+    '</div></div></div>').join('') + '</div>';
+  return section('goals', 'Goals', 'to end Sept 2026', b, false);
+}
+
+function node(i, depth) {
+  const kids = childrenOf(i.id).filter(k => S.showDone || isOpen(k) || descendants(k.id).some(isOpen));
+  if (isTask(i) && !kids.length) {
+    if (!S.showDone && !isOpen(i)) return '';
+    return '<div class="node' + (depth ? ' d' + Math.min(depth, 4) : '') + '">' + itemRow(i) + '</div>';
+  }
+  const open = S.open[i.id] !== false;
+  const openTasks = descendants(i.id).filter(d => isTask(d) && isOpen(d)).length;
+  return '<div class="node">' +
+    '<button class="grp' + (open ? ' open' : '') + (depth ? ' d' + Math.min(depth, 4) : '') + '" data-toggle="' + i.id + '">' +
+      '<span class="caret"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></span>' +
+      '<span class="typetag">' + esc(i.type) + '</span>' +
+      '<span class="lbl"><b>' + esc(i.title) + '</b>' + (i.obj || i.goal ? '<span>' + esc([i.obj, i.goal].filter(Boolean).join(' · ')) + '</span>' : '') + '</span>' +
+      '<span class="cnt">' + openTasks + '</span>' +
+    '</button>' +
+    (open ? '<div class="kids">' + kids.map(k => node(k, depth + 1)).join('') + '</div>' : '') +
+  '</div>';
+}
+
+function pageOutline() {
+  const roots = items().filter(i => i.parent == null).filter(r => !S.area || r.title === S.area);
+  const b = '<label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink-2);margin:0 0 12px">' +
+    '<input type="checkbox" id="tglDone" ' + (S.showDone ? 'checked' : '') + ' style="width:auto;margin:0"> Show done and dropped</label>' +
+    '<div class="card">' + roots.map(r => node(r, 0)).join('') + '</div>';
+  return section('outline', 'The whole plan', 'every level', b, false);
+}
+
+function renderBanner() {
+  const b = $('#banner');
+  if (FS_OK && FILE.handle && !FILE.ready) {
+    b.className = '';
+    b.innerHTML = '<div class="banner"><span class="t">Changes are not being saved to <b>' + esc(FILE.name) +
+      '</b> on this computer — Chrome needs permission again.</span><button id="bReconnect">Reconnect</button></div>';
+    $('#bReconnect').onclick = async () => {
+      await FILE.perm(true);
+      if (FILE.ready) {
+        const disk = await FILE.read();
+        if (disk) mutate(() => { S.plan = mergePlans(S.plan, disk); }, 'dp: merge disk copy');
+        else { S.fileDirty = true; await writeFile(); }
+      }
+      render();
+    };
+  } else { b.className = 'hide'; b.innerHTML = ''; }
+}
+function render() {
+  if (!S.plan) return;
+  if (!S.sec) S.sec = {};
+  renderBanner();
+  const areas = items().filter(i => i.type === 'A').map(i => i.title);
+  $('#hSub').textContent = (S.area || 'All areas') + ' · ' +
+    items().filter(i => isTask(i) && i.status === 'Active').length + ' active';
+  $('#filters').innerHTML =
+    '<button data-area="" class="' + (!S.area ? 'on' : '') + '">All</button>' +
+    areas.map(a => '<button data-area="' + esc(a) + '" class="' + (S.area === a ? 'on' : '') + '">' +
+      esc(a.charAt(0) + a.slice(1).toLowerCase()) + '</button>').join('');
+
+  const srch = '<input class="srch" type="text" id="srch" placeholder="Search tasks and notes…" value="' + esc(S.q) + '" autocapitalize="off">';
+  $('#view').innerHTML = S.q.trim()
+    ? srch + pageSearch()
+    : srch + '<div style="height:12px"></div>' + pageNow() + pageProjects() + pagePersonal() + pageGoals() + pageOutline();
+  LS.set(K.ui, { area: S.area, showDone: S.showDone, open: S.open, sec: S.sec });
+}
+
+/* ============================================================
+   DETAIL SHEET
+   ============================================================ */
+let editing = null;
+function openSheet(id) {
+  const m = byId(); const i = m[id]; if (!i) return;
+  editing = i;
+  const crumb = pathOf(i).map(p => esc(p.title)).join(' › ');
+  const e = evcOf(i), r = rawOf(i);
+  $('#shTitle').textContent = TYPE_NAME[i.type] + ' #' + i.id;
+  $('#shBody').innerHTML = '' +
+    (crumb ? '<div class="crumb">' + crumb + '</div>' : '') +
+    '<div class="field"><label>Title</label><textarea id="fTitle" rows="2">' + esc(i.title) + '</textarea></div>' +
+    '<div class="field"><label>Status</label><div class="seg" id="fStatus">' +
+      STATUSES.map(s => '<button data-s="' + s + '" class="' + (i.status === s ? 'on' : '') + '">' + s + '</button>').join('') + '</div></div>' +
+    '<div class="two">' +
+      '<div class="field"><label>Due</label><input type="date" id="fDue" value="' + esc(i.due || '') + '"></div>' +
+      '<div class="field"><label>Lead</label><select id="fLead">' +
+        ['', 'CEB', 'RGB', 'ASRS'].map(l => '<option value="' + l + '"' + ((i.lead || '') === l ? ' selected' : '') + '>' + (l || '—') + '</option>').join('') +
+      '</select></div>' +
+    '</div>' +
+    '<div class="field"><label>Waiting on / since</label><input type="text" id="fWait" value="' + esc(i.waiting_on || '') + '"></div>' +
+    (isTask(i) ? scoringBlock(i, e, r) : '') +
+    '<div class="field"><label>Blocked by (task numbers, comma separated)</label>' +
+      '<input type="text" id="fBlock" value="' + esc((i.blocked_by || []).join(', ')) + '">' +
+      '<div class="hint">' + (blockersOf(i).map(b => '#' + b.id + ' ' + esc(b.title.slice(0, 60))).join('<br>') || 'Not blocked.') + '</div></div>' +
+    '<div class="field"><label>Notes</label><textarea id="fNotes" rows="4">' + esc(i.notes || '') + '</textarea></div>' +
+    '<div class="hint" style="color:var(--muted)">Was row ' + (i.legacy_row || '—') + ' in the workbook' + (i.updated ? ' · last changed ' + fmtDate(i.updated.slice(0, 10)) : '') + '</div>';
+
+  $('#shFoot').innerHTML =
+    '<button class="btn ghost" id="fDelete" style="flex:0 0 auto;width:auto;padding:11px 14px">Delete</button>' +
+    '<button class="btn" id="fSave">Save</button>';
+  wireSheet(i);
+  $('#scrim').classList.add('on'); $('#sheet').classList.add('on');
+}
+function scoringBlock(i, e, r) {
+  const auto = i.scoring !== 'manual';
+  return '<div class="field"><label>How this is prioritised</label><div class="seg" id="fMode">' +
+    '<button data-m="auto" class="' + (auto ? 'on' : '') + '">Calculated</button>' +
+    '<button data-m="manual" class="' + (!auto ? 'on' : '') + '">I set it</button></div></div>' +
+    (auto
+      ? '<div class="four">' +
+          num('fUp', 'Upside 0–10', i.up) + num('fPup', 'Chance of it', i.pup, '0.1') +
+          num('fDn', 'Downside 0–10', i.dn) + num('fPdn', 'Chance of it', i.pdn, '0.1') +
+        '</div><div class="two">' +
+          num('fEff', 'Effort (hours)', i.effort_h, '0.5') + num('fUrg', 'Urgency 0–10', i.urgency) +
+        '</div>' +
+        '<div class="calcbox" id="calcOut">' + calcText(i) + '</div>'
+      : '<div class="field"><label>Priority 0–10</label><input type="number" id="fManual" min="0" max="10" step="0.5" value="' + (i.manual_score ?? '') + '"></div>');
+}
+function num(id, label, v, step) {
+  return '<div class="field"><label>' + label + '</label><input type="number" id="' + id + '" step="' + (step || '1') + '" value="' + (v ?? '') + '"></div>';
+}
+function calcText(i) {
+  const e = evcOf(i), r = rawOf(i), s = scoreOf(i);
+  if (e === null) return 'Fill in upside, downside and their chances to calculate a value.';
+  return 'Value = ' + i.up + '×' + i.pup + ' − ' + i.dn + '×' + i.pdn + ' = <b>' + e + '</b><br>' +
+         'Raw = urgency ' + i.urgency + ' × ' + e + ' ÷ ' + Math.max(Number(i.effort_h) || 1, 0.5) + 'h = <b>' + r + '</b><br>' +
+         'Score on the 0–10 scale = <b>' + s.toFixed(1) + '</b>';
+}
+function readSheet(i) {
+  const g = id => { const el = $('#' + id); return el ? el.value : undefined; };
+  const n = id => { const v = g(id); return v === '' || v === undefined ? null : Number(v); };
+  i.title = ($('#fTitle').value || '').trim() || i.title;
+  i.due = g('fDue') || null;
+  i.lead = g('fLead') || null;
+  i.waiting_on = g('fWait') || null;
+  i.notes = g('fNotes') || null;
+  i.blocked_by = (g('fBlock') || '').split(',').map(x => parseInt(x.replace(/[^0-9]/g, ''), 10)).filter(x => !isNaN(x));
+  if (isTask(i)) {
+    if (i.scoring === 'manual') { i.manual_score = n('fManual'); }
+    else { i.up = n('fUp'); i.pup = n('fPup'); i.dn = n('fDn'); i.pdn = n('fPdn'); i.effort_h = n('fEff'); i.urgency = n('fUrg'); }
+  }
+}
+function wireSheet(i) {
+  $$('#fStatus button').forEach(b => b.onclick = () => {
+    $$('#fStatus button').forEach(x => x.classList.remove('on')); b.classList.add('on'); i._status = b.dataset.s;
+  });
+  const mode = $('#fMode');
+  if (mode) $$('#fMode button').forEach(b => b.onclick = () => {
+    readSheet(i); i.scoring = b.dataset.m; touch(i); openSheet(i.id);
+  });
+  ['fUp','fPup','fDn','fPdn','fEff','fUrg'].forEach(id => { const el = $('#' + id); if (el) el.oninput = () => {
+    const tmp = Object.assign({}, i); readSheet(tmp); const box = $('#calcOut'); if (box) box.innerHTML = calcText(tmp);
+  };});
+  $('#fSave').onclick = () => {
+    mutate(() => { readSheet(i); if (i._status) { i.status = i._status; delete i._status; } touch(i); }, 'dp: edit #' + i.id);
+    closeSheet(); toast('Saved');
+  };
+  $('#fDelete').onclick = () => {
+    if (!confirm('Delete "' + i.title.slice(0, 60) + '"? This cannot be undone from the app.')) return;
+    mutate(() => { i.deleted = true; touch(i); }, 'dp: delete #' + i.id);
+    closeSheet(); toast('Deleted');
+  };
+}
+function closeSheet() { editing = null; $('#scrim').classList.remove('on'); $('#sheet').classList.remove('on'); }
+
+function addTask() {
+  const m = byId();
+  const parents = items().filter(i => !isTask(i)).sort((a, b) => (a.area || '').localeCompare(b.area || ''));
+  const id = S.plan.next_id || (Math.max(...items().map(i => i.id)) + 1);
+  $('#shTitle').textContent = 'New task';
+  $('#shBody').innerHTML =
+    '<div class="field"><label>What needs doing?</label><textarea id="nTitle" rows="2" autofocus></textarea></div>' +
+    '<div class="field"><label>Where does it belong?</label><select id="nParent">' +
+      parents.map(p => '<option value="' + p.id + '">' + esc((p.area ? p.area + ' › ' : '') + p.title.slice(0, 60)) + '</option>').join('') +
+    '</select></div>' +
+    '<div class="two">' +
+      '<div class="field"><label>Due</label><input type="date" id="nDue"></div>' +
+      '<div class="field"><label>Priority 0–10</label><input type="number" id="nPri" min="0" max="10" step="0.5" value="5"></div>' +
+    '</div>' +
+    '<div class="hint">You can switch it to the calculated score later, in the task itself.</div>';
+  $('#shFoot').innerHTML = '<button class="btn ghost" id="nCancel" style="flex:0 0 auto;width:auto;padding:11px 14px">Cancel</button><button class="btn" id="nSave">Add task</button>';
+  $('#nCancel').onclick = closeSheet;
+  $('#nSave').onclick = () => {
+    const title = ($('#nTitle').value || '').trim();
+    if (!title) { toast('Give it a title first'); return; }
+    const p = m[Number($('#nParent').value)];
+    mutate(() => {
+      S.plan.items.push({
+        id, type: 'T', title, area: p ? p.area : null, parent: p ? p.id : null,
+        obj: p ? p.obj : null, goal: null, lead: 'CEB', status: 'Active',
+        waiting_on: null, due: $('#nDue').value || null, end: null, notes: null,
+        blocked_by: [], scoring: 'manual', manual_score: Number($('#nPri').value) || 5,
+        up: null, pup: null, dn: null, pdn: null, effort_h: null, urgency: null,
+        updated: new Date().toISOString()
+      });
+      S.plan.next_id = id + 1;
+    }, 'dp: add #' + id);
+    closeSheet(); toast('Added');
+  };
+  $('#scrim').classList.add('on'); $('#sheet').classList.add('on');
+}
+
+/* ============================================================
+   SETTINGS
+   ============================================================ */
+function openSettings() {
+  $('#shTitle').textContent = 'Settings';
+  $('#shBody').innerHTML =
+    '<div class="field"><label>Repository</label><input type="text" id="sRepo" value="' + esc(S.cfg.repo) + '"></div>' +
+    '<div class="field"><label>File</label><input type="text" id="sPath" value="' + esc(S.cfg.path) + '"></div>' +
+    '<div class="field"><label>Access token</label><input type="password" id="sToken" value="' + esc(S.cfg.token) + '"></div>' +
+    (FS_OK ? '<h2 class="sec">This computer</h2><div class="setrow" id="sFileRow">' +
+        (FILE.ready ? '<span class="ok">\u2713</span><span>Saving straight into <b>' + esc(FILE.name) + '</b></span><button id="sFileOff">Disconnect</button>'
+       : FILE.handle ? '<span class="no">\u25cb</span><span>' + esc(FILE.name) + ' needs permission again</span><button id="sFileOn">Reconnect</button>'
+       : '<span class="no">\u25cb</span><span>Not saving to a file on this computer</span><button id="sFileOn">Choose plan.json</button>') +
+      '</div><div class="hint" style="margin:8px 0 0">Pick <b>plan.json</b> in your DP\\App folder. Every change is written there at once, and I read the same file. GitHub keeps the encrypted copy your phone reads.</div>' : '') +
+    '<div class="field" style="margin-top:16px"><label>Appearance</label><div class="seg" id="sTheme">' +
+      ['auto','light','dark'].map(t => '<button data-t="' + t + '" class="' + ((LS.get('dp.theme','auto') === t) ? 'on' : '') + '">' + t + '</button>').join('') + '</div></div>' +
+    '<h2 class="sec">Import</h2>' +
+    '<div class="field"><label>Load a plan.json file</label><input type="file" id="sFile" accept=".json,application/json">' +
+      '<div class="hint">Use this once, to seed the repo from the file Claude produced. It replaces everything currently stored.</div></div>' +
+    '<h2 class="sec">Export</h2>' +
+    '<div class="row-btns"><button class="btn ghost" id="sExport">Download a plain copy</button></div>' +
+    '<div class="hint" style="margin-top:8px">The downloaded file is <b>not</b> encrypted — keep it in your DP folder.</div>' +
+    '<div class="hint" style="margin-top:18px;color:var(--muted)">' + items().length + ' items · last change ' +
+      (S.plan.updated ? fmtDate(S.plan.updated.slice(0, 10)) : '—') + '</div>';
+  $('#shFoot').innerHTML = '<button class="btn danger" id="sLock" style="flex:0 0 auto;width:auto;padding:11px 14px">Lock</button><button class="btn" id="sSave">Save</button>';
+
+  const on = $('#sFileOn'), off = $('#sFileOff');
+  if (on) on.onclick = async () => {
+    try {
+      if (FILE.handle) { await FILE.perm(true); } else { await FILE.pick(); }
+      if (!FILE.ready) { toast('Permission not granted'); return; }
+      const disk = await FILE.read();
+      if (disk) {
+        const theirs = disk, mine = S.plan;
+        mutate(() => { S.plan = mergePlans(mine, theirs); }, 'dp: merge disk copy');
+        toast('Connected — merged ' + theirs.items.length + ' items from the file');
+      } else {
+        S.fileDirty = true; await writeFile(); toast('Connected — plan written to the file');
+      }
+      closeSheet(); render();
+    } catch (e) { if (e.name !== 'AbortError') toast(e.message); }
+  };
+  if (off) off.onclick = async () => { await FILE.forget(); closeSheet(); render(); toast('Disconnected'); };
+  $$('#sTheme button').forEach(b => b.onclick = () => {
+    LS.set('dp.theme', b.dataset.t); applyTheme();
+    $$('#sTheme button').forEach(x => x.classList.remove('on')); b.classList.add('on');
+  });
+  $('#sFile').onchange = ev => {
+    const f = ev.target.files[0]; if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const p = JSON.parse(rd.result);
+        if (!p.items) throw new Error('That file has no items.');
+        if (!confirm('Replace the stored plan with ' + p.items.length + ' items from this file?')) return;
+        mutate(() => { S.plan = p; S.plan.next_id = p.next_id || (Math.max(...p.items.map(i => i.id)) + 1); }, 'dp: import');
+        closeSheet(); toast('Imported ' + p.items.length + ' items');
+      } catch (e) { toast(e.message); }
+    };
+    rd.readAsText(f);
+  };
+  $('#sExport').onclick = () => {
+    const blob = new Blob([JSON.stringify(S.plan, null, 1)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'plan.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  };
+  $('#sLock').onclick = () => { LS.del(K.pass); location.reload(); };
+  $('#sSave').onclick = () => {
+    S.cfg = { repo: $('#sRepo').value.trim(), path: $('#sPath').value.trim() || 'plan.enc.json', token: $('#sToken').value.trim(), branch: S.cfg.branch };
+    LS.set(K.cfg, S.cfg); closeSheet(); toast('Saved'); pull();
+  };
+  $('#scrim').classList.add('on'); $('#sheet').classList.add('on');
+}
+function applyTheme() {
+  const t = LS.get('dp.theme', 'auto');
+  document.documentElement.setAttribute('data-theme', t);
+}
+
+/* ============================================================
+   EVENTS
+   ============================================================ */
+document.addEventListener('click', ev => {
+  const t = ev.target.closest('[data-check],[data-open],[data-toggle],[data-sec],[data-area]');
+  if (!t) return;
+  if (t.dataset.check !== undefined) {
+    const i = byId()[Number(t.dataset.check)];
+    mutate(() => { i.status = isOpen(i) ? 'Done' : 'Active'; touch(i); }, 'dp: ' + i.status + ' #' + i.id);
+    if (!isOpen(i)) toast('Done — nice');
+    return;
+  }
+  if (t.dataset.open !== undefined) return openSheet(Number(t.dataset.open));
+  if (t.dataset.toggle !== undefined) {
+    const id = Number(t.dataset.toggle);
+    const cur = t.classList.contains('open');
+    S.open[id] = !cur; render(); return;
+  }
+  if (t.dataset.sec !== undefined) {
+    const k = t.dataset.sec;
+    S.sec[k] = !(t.classList.contains('open'));
+    render(); return;
+  }
+  if (t.dataset.area !== undefined) { S.area = t.dataset.area || null; render(); return; }
+});
+document.addEventListener('input', ev => {
+  if (ev.target.id === 'srch') { S.q = ev.target.value; const p = ev.target.selectionStart; render(); const el = $('#srch'); if (el) { el.focus(); el.setSelectionRange(p, p); } }
+});
+document.addEventListener('change', ev => {
+  if (ev.target.id === 'tglDone') { S.showDone = ev.target.checked; render(); }
+});
+$('#scrim').onclick = closeSheet;
+$('#shClose').onclick = closeSheet;
+$('#fab').onclick = addTask;
+$('#btnSettings').onclick = openSettings;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { clearTimeout(fileTimer); writeFile(); clearTimeout(saveTimer); push('dp: update'); }
+});
+window.addEventListener('online', () => { setSync('busy', 'Reconnecting…'); pull(); });
+window.addEventListener('offline', () => setSync('off', 'Offline'));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pull(true); });
+setInterval(() => { if (!document.hidden) pull(true); }, 120000);
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+applyTheme();
+const gate = {
+  el: $('#gate'), setupOpen: false,
+  show(setup) {
+    S.cfg = LS.get(K.cfg, { repo: '', path: 'plan.enc.json', token: '', branch: 'main' });
+    this.setupOpen = setup || !S.cfg.repo || !S.cfg.token;
+    $('#gSetup').classList.toggle('hide', !this.setupOpen);
+    $('#gSetupToggle').classList.toggle('hide', this.setupOpen);
+    $('#gRepo').value = S.cfg.repo; $('#gToken').value = S.cfg.token; $('#gPath').value = S.cfg.path;
+    $('#gTitle').textContent = this.setupOpen ? 'Connect your plan' : 'Development Plan';
+    $('#gSub').textContent = this.setupOpen
+      ? 'One-time setup. Everything is stored encrypted; the passphrase never leaves this device.'
+      : 'Enter your passphrase to unlock.';
+    $('#gGo').textContent = this.setupOpen ? 'Connect' : 'Unlock';
+    this.el.classList.remove('hide');
+    setTimeout(() => $('#gPass').focus(), 150);
+  },
+  err(m) { const e = $('#gErr'); e.textContent = m; e.classList.add('on'); }
+};
+$('#gSetupToggle').onclick = () => gate.show(true);
+$('#gGo').onclick = unlock;
+$('#gPass').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+
+async function unlock() {
+  $('#gErr').classList.remove('on');
+  const pass = $('#gPass').value;
+  if (!pass) return gate.err('Enter your passphrase.');
+  if (gate.setupOpen) {
+    S.cfg = { repo: $('#gRepo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, ''),
+              path: ($('#gPath').value || 'plan.enc.json').trim(), token: $('#gToken').value.trim(), branch: 'main' };
+    if (!/^[^/]+\/[^/]+$/.test(S.cfg.repo)) return gate.err('The repository should look like owner/name.');
+    if (!S.cfg.token) return gate.err('A GitHub access token is required.');
+    LS.set(K.cfg, S.cfg);
+  }
+  S.pass = pass;
+  $('#gGo').textContent = 'Working…'; $('#gGo').disabled = true;
+  try {
+    let remote = null;
+    try { remote = await ghGet(S.cfg); } catch (e) { if (!LS.get(K.cache)) throw e; }
+    if (remote) {
+      S.plan = await decryptPlan(remote.text, pass);
+      S.sha = remote.sha;
+    } else {
+      const cached = LS.get(K.cache);
+      if (cached) { S.plan = await decryptPlan(cached, pass); S.sha = LS.get(K.sha, null); }
+      else {
+        S.plan = { version:1, schema:'dp-plan/1', updated:null, next_id:1, north_star:{}, items:[] };
+        S.sha = null; S.dirty = true;
+      }
+    }
+    if ($('#gRemember').checked) LS.set(K.pass, pass); else LS.del(K.pass);
+    await cacheLocal();
+    const ui = LS.get(K.ui, {});
+    S.area = ui.area || null; S.showDone = !!ui.showDone; S.open = ui.open || {}; S.sec = ui.sec || {};
+    // adopt the local file if this computer has one
+    if (FS_OK) {
+      await FILE.load();
+      if (FILE.handle) {
+        const p = await FILE.perm(false);          // silent — no gesture available here
+        if (p === 'granted') {
+          const disk = await FILE.read();
+          if (disk) {
+            const merged = mergePlans(disk, S.plan);
+            const changed = JSON.stringify(merged.items) !== JSON.stringify(S.plan.items) ||
+                            JSON.stringify(merged.projects || null) !== JSON.stringify(S.plan.projects || null);
+            S.plan = merged;
+            if (changed) { S.dirty = true; S.gen++; }
+          }
+          S.fileDirty = true; await writeFile();
+        }
+      }
+    }
+    gate.el.classList.add('hide');
+    $('#app').classList.remove('hide');
+    render();
+    setSync(navigator.onLine ? 'ok' : 'off', navigator.onLine ? 'Up to date' : 'Offline');
+    if (S.dirty) push('dp: initial');
+  } catch (e) {
+    const bad = e.name === 'OperationError' || !e.message || /decrypt|operation-specific/i.test(e.message);
+    gate.err(bad ? 'That passphrase does not match the stored plan.' : e.message);
+    LS.del(K.pass);
+  } finally { $('#gGo').textContent = gate.setupOpen ? 'Connect' : 'Unlock'; $('#gGo').disabled = false; }
+}
+
+/* auto-unlock if remembered */
+(function () {
+  const cfg = LS.get(K.cfg, null), saved = LS.get(K.pass, null);
+  gate.show(!cfg || !cfg.repo);
+  window.__ready = true;
+  if (cfg && cfg.repo && saved) { $('#gPass').value = saved; unlock(); }
+})();
+
+/* PWA manifest, inlined */
+try {
+  const icon = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='#2a78d6'/><text x='256' y='344' font-family='system-ui,sans-serif' font-size='236' font-weight='600' fill='#fff' text-anchor='middle'>DP</text></svg>");
+  const mf = { name:'Development Plan', short_name:'DP', start_url:'.', scope:'.', display:'standalone',
+               background_color:'#f9f9f7', theme_color:'#f9f9f7',
+               icons:[{ src: icon, sizes:'512x512', type:'image/svg+xml', purpose:'any' }] };
+  const l = document.createElement('link');
+  l.rel = 'manifest';
+  l.href = URL.createObjectURL(new Blob([JSON.stringify(mf)], { type: 'application/manifest+json' }));
+  document.head.appendChild(l);
+} catch (e) {}
+</script>
+</body>
+</html>
