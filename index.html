@@ -244,6 +244,12 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
   z-index:70;opacity:0;pointer-events:none;transition:.2s;max-width:88vw;text-align:center}
 #toast.on{opacity:1;transform:translateX(-50%)}
 .srch{width:100%;margin-bottom:14px}
+.card.decisions{border-color:var(--warning)}
+.item.dec .opts{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 12px 46px;width:100%}
+.item.dec{flex-wrap:wrap}
+.opt{font:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--accent);border-radius:8px;background:transparent;color:var(--accent);cursor:pointer}
+.opt.ghost{border-color:var(--line);color:var(--muted)}
+.item.dec.is-blocked .opt{opacity:.55}
 .card.focus{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)}
 .fwhy{padding:0 14px 12px 46px;font-size:12.5px;color:var(--muted);line-height:1.45}
 .item.hold .hb{color:var(--ink-2)}
@@ -817,6 +823,18 @@ function focusBlock() {
         (o.x.set_by && o.x.set_by !== 'engine' ? ' <span class="chip">set by ' + esc(o.x.set_by) + (o.x.engine_agrees === false ? ' · engine would pick differently' : '') + '</span>' : '') +
         '</div>').join('') + '</div>';
   }
+  const dec = (f.decisions || []).map(d => ({ d, i: m[d.id] })).filter(o => o.i && !o.i.deleted && isOpen(o.i) && !o.i.answer && inArea(o.i));
+  if (dec.length) {
+    h += '<h2 class="sec">Decisions waiting on you <span class="note">minutes of yours unblock others\' weeks</span></h2><div class="card decisions">' +
+      dec.map(o => '<div class="item dec' + (o.d.blocked ? ' is-blocked' : '') + '">' +
+        '<button class="item-main" data-open="' + o.i.id + '"><div class="t">' + esc(o.i.title) + '</div>' +
+          '<div class="meta">' + dueChip(o.i) + (o.d.unlocks && o.d.unlocks.length ? '<span class="chip">unlocks ' + o.d.unlocks.slice(0, 4).map(u => '#' + u).join(', ') + '</span>' : '') +
+          (o.i.area && !S.area ? '<span class="chip">' + esc(o.i.area) + '</span>' : '') + '</div>' +
+          (o.i.recommendation ? '<div class="why">DP recommends: ' + esc(o.i.recommendation) + '</div>' : '') + '</button>' +
+        (o.i.options && o.i.options.length ? '<div class="opts">' + o.i.options.map((op, n) => '<button class="opt" data-decide="' + o.i.id + '" data-opt="' + n + '">' + esc(op) + '</button>').join('') +
+          '<button class="opt ghost" data-decide="' + o.i.id + '" data-opt="-1">Other…</button></div>' : '<div class="opts"><button class="opt ghost" data-decide="' + o.i.id + '" data-opt="-1">Record the decision…</button></div>') +
+      '</div>').join('') + '</div>';
+  }
   const holds = (f.holds || []).filter(x => x.kind !== 'project' || !S.area);
   const parked = holds.filter(x => x.kind === 'hold' && !(x.unlocks || []).length && /^parked/.test(String(x.held_by)));
   const shown = holds.filter(x => parked.indexOf(x) < 0 && (x.kind === 'project' || !x.id || (m[x.id] && inArea(m[x.id]))));
@@ -1004,6 +1022,10 @@ function openSheet(id) {
       '<input type="text" id="fBlock" value="' + esc((i.blocked_by || []).join(', ')) + '">' +
       '<div class="hint">' + (blockersOf(i).map(b => '#' + b.id + ' ' + esc(b.title.slice(0, 60))).join('<br>') || 'Not blocked.') + '</div></div>' +
     '<div class="field"><label>Notes</label><textarea id="fNotes" rows="4">' + esc(i.notes || '') + '</textarea></div>' +
+    (isTask(i) ? '<div class="field"><label><input type="checkbox" id="fDecision"' + (i.decision ? ' checked' : '') + '> This is a decision only Chad can take</label>' +
+      '<div class="two" style="margin-top:6px"><div class="field"><label>Options (one per line)</label><textarea id="fOptions" rows="3">' + esc((i.options || []).join('\n')) + '</textarea></div>' +
+      '<div class="field"><label>Recommendation</label><textarea id="fRec" rows="3">' + esc(i.recommendation || '') + '</textarea></div></div>' +
+      (i.answer ? '<div class="hint">Decided: <b>' + esc(i.answer) + '</b></div>' : '') + '</div>' : '') +
     '<div class="hint" style="color:var(--muted)">Was row ' + (i.legacy_row || '—') + ' in the workbook' + (i.updated ? ' · last changed ' + fmtDate(i.updated.slice(0, 10)) : '') + '</div>';
 
   $('#shFoot').innerHTML =
@@ -1047,6 +1069,13 @@ function readSheet(i) {
   i.notes = g('fNotes') || null;
   i.blocked_by = (g('fBlock') || '').split(',').map(x => parseInt(x.replace(/[^0-9]/g, ''), 10)).filter(x => !isNaN(x));
   if (isTask(i)) {
+    const dEl = $('#fDecision');
+    if (dEl) {
+      i.decision = dEl.checked || undefined;
+      i.options = (g('fOptions') || '').split('\n').map(x => x.trim()).filter(Boolean);
+      if (!i.options.length) delete i.options;
+      i.recommendation = (g('fRec') || '').trim() || undefined;
+    }
     if (i.scoring === 'manual') { i.manual_score = n('fManual'); }
     else { i.up = n('fUp'); i.pup = n('fPup'); i.dn = n('fDn'); i.pdn = n('fPdn'); i.effort_h = n('fEff'); i.urgency = n('fUrg'); }
   }
@@ -1194,8 +1223,21 @@ function applyTheme() {
    EVENTS
    ============================================================ */
 document.addEventListener('click', ev => {
-  const t = ev.target.closest('[data-check],[data-open],[data-toggle],[data-sec],[data-area]');
+  const t = ev.target.closest('[data-decide],[data-check],[data-open],[data-toggle],[data-sec],[data-area]');
   if (!t) return;
+  if (t.dataset.decide !== undefined) {
+    const i = byId()[Number(t.dataset.decide)]; if (!i) return;
+    const n = Number(t.dataset.opt);
+    if (n < 0) return openSheet(i.id);                       // "Other…": write it in the editor
+    const ans = (i.options || [])[n];
+    if (!ans) return;
+    mutate(() => {
+      i.answer = ans; i.status = 'Done'; touch(i);
+      i.notes = ((i.notes || '') + (i.notes ? ' · ' : '') + 'Decided ' + fmtDate(todayISO()) + ': ' + ans).trim();
+    }, 'dp: decided #' + i.id);
+    toast('Decided — ' + ans.slice(0, 40));
+    return;
+  }
   if (t.dataset.check !== undefined) {
     const i = byId()[Number(t.dataset.check)];
     mutate(() => { i.status = isOpen(i) ? 'Done' : 'Active'; touch(i); }, 'dp: ' + i.status + ' #' + i.id);
