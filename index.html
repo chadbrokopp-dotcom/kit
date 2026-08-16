@@ -729,7 +729,7 @@ function itemRow(i, opts) {
       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' +
     '</button>' +
     '<button class="item-main" data-open="' + i.id + '">' +
-      '<div class="t">' + esc(i.title) + '</div>' +
+      '<div class="t">' + esc(opts.headline ? headline(i.title) : i.title) + '</div>' +
       '<div class="meta">' +
         (opts.hideStatus ? '' : statusChip(i)) + dueChip(i) + blockChip(i) +
         (i.area && !S.area ? '<span class="chip">' + esc(i.area) + '</span>' : '') +
@@ -743,6 +743,13 @@ function itemRow(i, opts) {
   '</div>';
 }
 
+function headline(t, n) {
+  n = n || 72; t = String(t || '');
+  const parts = t.split(/: | — | \(| – |; /); let out = parts[0];
+  if (out.length < 12 && parts.length > 1) out = out + (t.slice(out.length, out.length + 2) === ': ' ? ': ' : ' — ') + parts[1].split(/ — | \(| – |; /)[0];
+  out = out.trim();
+  return out.length <= n ? out : out.slice(0, n - 1).trim() + '\u2026';
+}
 function md(t) {
   return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>');
 }
@@ -825,8 +832,8 @@ function focusBlock() {
   const pri = (f.priorities || []).map(x => ({ x, i: m[x.id] })).filter(o => o.i && !o.i.deleted && inArea(o.i));
   if (pri.length) {
     h += '<h2 class="sec">Your priorities <span class="note">' + (pri.length === 1 ? 'the one thing' : 'the two things') + ' · as of ' + fmtDate(f.as_of) + '</span></h2><div class="card focus">' +
-      pri.map((o, n) => itemRow(o.i, { rank: n + 1, hideStatus: true }) +
-        '<div class="fwhy"><b>Why:</b> ' + esc(o.x.why || '') +
+      pri.map((o, n) => itemRow(o.i, { rank: n + 1, hideStatus: true, headline: true }) +
+        '<div class="fwhy" title="' + esc(o.x.why_calc || '') + '">' + esc(o.x.why || '') +
         (o.x.set_by && o.x.set_by !== 'engine' ? ' <span class="chip">set by ' + esc(o.x.set_by) + (o.x.engine_agrees === false ? ' · engine would pick differently' : '') + '</span>' : '') +
         '</div>').join('') + '</div>';
   }
@@ -834,13 +841,18 @@ function focusBlock() {
   if (dec.length) {
     h += '<h2 class="sec">Decisions waiting on you <span class="note">minutes of yours unblock others\' weeks</span></h2><div class="card decisions">' +
       dec.map(o => '<div class="item dec' + (o.d.blocked ? ' is-blocked' : '') + '">' +
-        '<button class="item-main" data-open="' + o.i.id + '"><div class="t">' + esc(o.i.title) + '</div>' +
+        '<button class="item-main" data-open="' + o.i.id + '"><div class="t">' + esc(headline(o.i.title, 90)) + '</div>' +
           '<div class="meta">' + dueChip(o.i) + (o.d.unlocks && o.d.unlocks.length ? '<span class="chip">unlocks ' + o.d.unlocks.slice(0, 4).map(u => '#' + u).join(', ') + '</span>' : '') +
           (o.i.area && !S.area ? '<span class="chip">' + esc(o.i.area) + '</span>' : '') + '</div>' +
-          (o.i.recommendation ? '<div class="why">DP recommends: ' + esc(o.i.recommendation) + '</div>' : '') + '</button>' +
+          (o.i.recommendation ? '<div class="why">DP suggests: ' + esc(o.i.recommendation.length > 140 ? o.i.recommendation.slice(0, 139) + '\u2026' : o.i.recommendation) + '</div>' : '') + '</button>' +
         (o.i.options && o.i.options.length ? '<div class="opts">' + o.i.options.map((op, n) => '<button class="opt" data-decide="' + o.i.id + '" data-opt="' + n + '">' + esc(op) + '</button>').join('') +
           '<button class="opt ghost" data-decide="' + o.i.id + '" data-opt="-1">Other…</button></div>' : '<div class="opts"><button class="opt ghost" data-decide="' + o.i.id + '" data-opt="-1">Record the decision…</button></div>') +
       '</div>').join('') + '</div>';
+  }
+  const taken = items().filter(i => i.decision && i.answer && inArea(i)).sort((a, b) => (b.updated || '').localeCompare(a.updated || '')).slice(0, 5);
+  if (taken.length) {
+    h += '<div class="note" style="padding:6px 4px 12px">Decided recently — passed to the agents in their briefs: ' +
+      taken.map(i => '#' + i.id + ' ' + esc(headline(i.title, 50)) + ' \u2192 <b>' + esc(i.answer) + '</b>').join(' \u00b7 ') + '</div>';
   }
   const holds = (f.holds || []).filter(x => x.kind !== 'project' || !S.area);
   const parked = holds.filter(x => x.kind === 'hold' && !(x.unlocks || []).length && /^parked/.test(String(x.held_by)));
