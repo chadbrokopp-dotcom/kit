@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kit — your plan, your priorities</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='118' fill='%232a78d6'/%3E%3Cpath d='M160 120v272M160 264l152-144M176 264l160 128' fill='none' stroke='%23fff' stroke-width='60' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='20' fill='%23c2417a'/%3E%3Cpath d='M21 14v36' stroke='%23fff' stroke-width='10' stroke-linecap='round'/%3E%3Cpath d='M43 14 24 33l19 17' fill='none' stroke='%23fff' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -274,7 +274,7 @@ ul.moved{margin:0;padding:10px 14px 10px 30px;font-size:12.5px;color:var(--muted
 <!-- ============ GATE ============ -->
 <div id="gate">
   <div class="gate-card">
-    <h1 id="gTitle"><svg class="kmark" viewBox="0 0 64 64" width="26" height="26" aria-label="Kit" role="img"><rect width="64" height="64" rx="16" fill="var(--accent)"/><path d="M20 15v34M20 33l19-18M22 33l20 16" fill="none" stroke="#fff" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Kit</h1>
+    <h1 id="gTitle"><svg class="kmark" viewBox="0 0 64 64" width="28" height="28" aria-hidden="true"><rect width="64" height="64" rx="20" fill="#c2417a"/><path d="M21 14v36" stroke="#fff" stroke-width="10" stroke-linecap="round"/><path d="M43 14 24 33l19 17" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></svg> Kit</h1>
     <p class="sub" id="gSub">Enter your passphrase to unlock.</p>
 
     <div id="gSetup" class="hide">
@@ -1446,9 +1446,9 @@ async function unlock() {
 
 /* PWA manifest, inlined */
 try {
-  const icon = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='118' fill='#2a78d6'/><path d='M160 120v272M160 264l152-144M176 264l160 128' fill='none' stroke='#fff' stroke-width='60' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  const icon = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='20' fill='#c2417a'/><path d='M21 14v36' stroke='#fff' stroke-width='10' stroke-linecap='round'/><path d='M43 14 24 33l19 17' fill='none' stroke='#fff' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/></svg>");
   const mf = { name:'Kit — your plan, your priorities', short_name:'Kit', start_url:'.', scope:'.', display:'standalone',
-               background_color:'#f9f9f7', theme_color:'#f9f9f7',
+               background_color:'#f9f9f7', theme_color:'#c2417a',
                icons:[{ src: icon, sizes:'512x512', type:'image/svg+xml', purpose:'any' }] };
   const l = document.createElement('link');
   l.rel = 'manifest';
