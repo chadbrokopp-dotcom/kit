@@ -770,8 +770,11 @@ function pageSearch() {
     '<div class="card">' + (hits.length ? hits.map(i => itemRow(i)).join('') : '<div class="empty">No matches.</div>') + '</div>';
 }
 
+const isDelegated = i => String(i.lead || '').toLowerCase() === 'claude';
 function pageNow() {
-  const list = doNow();
+  const full = doNow();
+  const list = full.filter(i => !isDelegated(i));
+  const delegated = full.filter(isDelegated);
   const all  = items().filter(inArea);
   const act  = all.filter(i => isTask(i) && i.status === 'Active');
   const wait = all.filter(i => isTask(i) && i.status === 'Waiting');
@@ -795,6 +798,10 @@ function pageNow() {
     h += section('next', 'Next up', '', '<div class="card">' +
       list.slice(5, 14).map((i, n) => itemRow(i, { rank: n + 6, why: true, hideStatus: true })).join('') +
       '</div>', true, list.length - 5);
+  }
+  if (delegated.length) {
+    h += section('delegated', 'Being done by Claude', 'not on your list — read the result when it lands', '<div class="card">' +
+      delegated.map(i => itemRow(i, { hideStatus: true })).join('') + '</div>', false, delegated.length);
   }
   const attention = over.concat(wait).concat(blk);
   if (attention.length) {
@@ -1013,7 +1020,7 @@ function openSheet(id) {
     '<div class="two">' +
       '<div class="field"><label>Due</label><input type="date" id="fDue" value="' + esc(i.due || '') + '"></div>' +
       '<div class="field"><label>Lead</label><select id="fLead">' +
-        ['', 'CEB', 'RGB', 'ASRS'].map(l => '<option value="' + l + '"' + ((i.lead || '') === l ? ' selected' : '') + '>' + (l || '—') + '</option>').join('') +
+        ['', 'CEB', 'RGB', 'ASRS', 'Claude'].map(l => '<option value="' + l + '"' + ((i.lead || '') === l ? ' selected' : '') + '>' + (l || '—') + '</option>').join('') +
       '</select></div>' +
     '</div>' +
     '<div class="field"><label>Waiting on / since</label><input type="text" id="fWait" value="' + esc(i.waiting_on || '') + '"></div>' +
