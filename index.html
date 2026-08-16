@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Wren 🧭 — your plan, your priorities</title>
+<title>Kit — your plan, your priorities</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='118' fill='%232a78d6'/%3E%3Cpath d='M160 120v272M160 264l152-144M176 264l160 128' fill='none' stroke='%23fff' stroke-width='60' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -90,8 +91,10 @@ header{
 }
 .hrow{display:flex;align-items:center;gap:10px;max-width:900px;margin:0 auto}
 .brand{font-weight:650;font-size:17px;letter-spacing:-.01em;margin-right:auto;display:flex;align-items:center;gap:9px}
-.brand .logo{font-size:22px;line-height:1}
-#gTitle .logo{font-size:24px;margin-right:4px}
+.mark{flex:none;display:grid;place-items:center;width:34px;height:34px}
+.mark .kmark{width:26px;height:26px;display:block}
+#gTitle{display:flex;align-items:center;gap:10px}#gTitle .kmark{width:28px;height:28px}
+link[rel=icon]{}
 .brand small{display:block;font-weight:400;font-size:11.5px;color:var(--muted);letter-spacing:0}
 .iconbtn{flex:none;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--ink-2);background:var(--surface-2)}
 .iconbtn:active{background:var(--line)}
@@ -271,7 +274,7 @@ ul.moved{margin:0;padding:10px 14px 10px 30px;font-size:12.5px;color:var(--muted
 <!-- ============ GATE ============ -->
 <div id="gate">
   <div class="gate-card">
-    <h1 id="gTitle"><span class="logo">🧭</span> Wren</h1>
+    <h1 id="gTitle"><svg class="kmark" viewBox="0 0 64 64" width="26" height="26" aria-label="Kit" role="img"><rect width="64" height="64" rx="16" fill="var(--accent)"/><path d="M20 15v34M20 33l19-18M22 33l20 16" fill="none" stroke="#fff" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Kit</h1>
     <p class="sub" id="gSub">Enter your passphrase to unlock.</p>
 
     <div id="gSetup" class="hide">
@@ -316,7 +319,7 @@ ul.moved{margin:0;padding:10px 14px 10px 30px;font-size:12.5px;color:var(--muted
 <div id="app" class="hide">
   <header>
     <div class="hrow">
-      <div class="brand"><span class="logo" aria-hidden="true">🧭</span><span><span class="nm">Wren</span><small id="hSub">—</small></span></div>
+      <div class="brand"><span><span class="nm">Kit</span><small id="hSub">—</small></span></div>
       <div class="pill" id="syncPill"><span class="dot"></span><span id="syncTxt">…</span></div>
       <button class="iconbtn" id="btnSettings" aria-label="Settings">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -855,7 +858,7 @@ function replyBox(i) {
   return '<div class="reply">' +
     (last.length ? '<div class="prev">' + last.map(r => '<div><span class="when">' + fmtDate(String(r.at).slice(0, 10)) + '</span> ' + esc(r.text) +
         (r.seen ? ' <span class="chip">seen by ' + esc(r.seen) + '</span>' : ' <span class="chip">to the agents</span>') + '</div>').join('') + '</div>' : '') +
-    '<form class="rform" data-reply="' + i.id + '"><input type="text" placeholder="Reply to Wren — a clarification, an answer, an update…" autocomplete="off">' +
+    '<form class="rform" data-reply="' + i.id + '"><input type="text" placeholder="Reply to Kit — a clarification, an answer, an update…" autocomplete="off">' +
     '<button type="submit" class="opt">Send</button></form></div>';
 }
 document.addEventListener('submit', ev => {
@@ -866,7 +869,7 @@ document.addEventListener('submit', ev => {
   const text = (inp.value || '').trim();
   if (!i || !text) return;
   mutate(() => { i.replies = (i.replies || []).concat([{ at: new Date().toISOString(), text: text, by: 'Chad' }]); touch(i); }, 'dp: reply #' + i.id);
-  toast('Sent to Wren — the agents see it within the hour');
+  toast('Sent to Kit — the agents see it within the hour');
 });
 
 /* ---------- the engine's focus: your 1-2 priorities, and what is on hold ---------- */
@@ -1358,7 +1361,7 @@ const gate = {
     $('#gSetup').classList.toggle('hide', !this.setupOpen);
     $('#gSetupToggle').classList.toggle('hide', this.setupOpen);
     $('#gRepo').value = S.cfg.repo; $('#gToken').value = S.cfg.token; $('#gPath').value = S.cfg.path;
-    $('#gTitle').innerHTML = this.setupOpen ? '<span class="logo">🧭</span> Connect your plan' : '<span class="logo">🧭</span> Wren';
+    $('#gTitle').innerHTML = (this.setupOpen ? 'Connect your plan' : 'Kit');
     $('#gSub').textContent = this.setupOpen
       ? 'One-time setup. Everything is stored encrypted; the passphrase never leaves this device.'
       : 'Enter your passphrase to unlock.';
@@ -1443,8 +1446,8 @@ async function unlock() {
 
 /* PWA manifest, inlined */
 try {
-  const icon = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='#2a78d6'/><text x='256' y='344' font-family='system-ui,sans-serif' font-size='300' text-anchor='middle'>🧭</text></svg>");
-  const mf = { name:'Wren — your plan, your priorities', short_name:'Wren', start_url:'.', scope:'.', display:'standalone',
+  const icon = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='118' fill='#2a78d6'/><path d='M160 120v272M160 264l152-144M176 264l160 128' fill='none' stroke='#fff' stroke-width='60' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  const mf = { name:'Kit — your plan, your priorities', short_name:'Kit', start_url:'.', scope:'.', display:'standalone',
                background_color:'#f9f9f7', theme_color:'#f9f9f7',
                icons:[{ src: icon, sizes:'512x512', type:'image/svg+xml', purpose:'any' }] };
   const l = document.createElement('link');
