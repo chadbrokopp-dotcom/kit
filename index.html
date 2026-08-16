@@ -251,6 +251,7 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
 .opt.ghost{border-color:var(--line);color:var(--muted)}
 .item.dec.is-blocked .opt{opacity:.55}
 .card.focus{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)}
+.item .sub{font-size:12.5px;color:var(--ink-2);line-height:1.4;margin:2px 0 4px}
 .fwhy{padding:0 14px 12px 46px;font-size:12.5px;color:var(--muted);line-height:1.45}
 .item.hold .hb{color:var(--ink-2)}
 .item.hold.late .why b{color:var(--critical)}
@@ -729,7 +730,8 @@ function itemRow(i, opts) {
       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' +
     '</button>' +
     '<button class="item-main" data-open="' + i.id + '">' +
-      '<div class="t">' + esc(opts.headline ? headline(i.title) : i.title) + '</div>' +
+      '<div class="t">' + esc(headline(i.title, 96)) + '</div>' +
+      (subtitle(i) ? '<div class="sub">' + esc(subtitle(i)) + '</div>' : '') +
       '<div class="meta">' +
         (opts.hideStatus ? '' : statusChip(i)) + dueChip(i) + blockChip(i) +
         (i.area && !S.area ? '<span class="chip">' + esc(i.area) + '</span>' : '') +
@@ -745,10 +747,26 @@ function itemRow(i, opts) {
 
 function headline(t, n) {
   n = n || 72; t = String(t || '');
+  const pm = t.match(/^([^:—–;(]*\([^)]*\))(?=: | — )/);   // keep a bracket that precedes the colon with the headline
+  if (pm) { const f = pm[1]; return f.length <= n ? f : f.slice(0, n - 1).trim() + '\u2026'; }
   const parts = t.split(/: | — | \(| – |; /); let out = parts[0];
   if (out.length < 12 && parts.length > 1) out = out + (t.slice(out.length, out.length + 2) === ': ' ? ': ' : ' — ') + parts[1].split(/ — | \(| – |; /)[0];
   out = out.trim();
   return out.length <= n ? out : out.slice(0, n - 1).trim() + '\u2026';
+}
+function subtitle(i, n) {
+  n = n || 170;
+  let t = '';
+  if (i.detail) t = String(i.detail).trim();
+  else {
+    const title = String(i.title || ''), head = headline(title, 1e6);
+    let rest = title.startsWith(head) ? title.slice(head.length).replace(/^[\s:—–(;]+/, '') : '';
+    if (rest.endsWith(')') && (rest.match(/\(/g) || []).length < (rest.match(/\)/g) || []).length) rest = rest.slice(0, -1);
+    t = rest.trim();
+    if (!t && i.notes) { const segs = String(i.notes).split(' \u00b7 ').map(x => x.trim()).filter(Boolean); t = segs.length ? segs[segs.length - 1] : ''; }
+  }
+  t = t.replace(/\s+/g, ' ');
+  return t.length <= n ? t : t.slice(0, n - 1).trim() + '\u2026';
 }
 function md(t) {
   return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -842,6 +860,7 @@ function focusBlock() {
     h += '<h2 class="sec">Decisions waiting on you <span class="note">minutes of yours unblock others\' weeks</span></h2><div class="card decisions">' +
       dec.map(o => '<div class="item dec' + (o.d.blocked ? ' is-blocked' : '') + '">' +
         '<button class="item-main" data-open="' + o.i.id + '"><div class="t">' + esc(headline(o.i.title, 90)) + '</div>' +
+          (subtitle(o.i) ? '<div class="sub">' + esc(subtitle(o.i)) + '</div>' : '') +
           '<div class="meta">' + dueChip(o.i) + (o.d.unlocks && o.d.unlocks.length ? '<span class="chip">unlocks ' + o.d.unlocks.slice(0, 4).map(u => '#' + u).join(', ') + '</span>' : '') +
           (o.i.area && !S.area ? '<span class="chip">' + esc(o.i.area) + '</span>' : '') + '</div>' +
           (o.i.recommendation ? '<div class="why">DP suggests: ' + esc(o.i.recommendation.length > 140 ? o.i.recommendation.slice(0, 139) + '\u2026' : o.i.recommendation) + '</div>' : '') + '</button>' +
@@ -1026,7 +1045,8 @@ function openSheet(id) {
   $('#shTitle').textContent = TYPE_NAME[i.type] + ' #' + i.id;
   $('#shBody').innerHTML = '' +
     (crumb ? '<div class="crumb">' + crumb + '</div>' : '') +
-    '<div class="field"><label>Title</label><textarea id="fTitle" rows="2">' + esc(i.title) + '</textarea></div>' +
+    '<div class="field"><label>Title — what needs to happen (one line)</label><textarea id="fTitle" rows="2">' + esc(i.title) + '</textarea></div>' +
+    '<div class="field"><label>Detail — what exactly (shown under the title)</label><textarea id="fDetail" rows="2" placeholder="' + esc(subtitle(i) && !i.detail ? 'currently taken from the title: ' + subtitle(i, 90) : '') + '">' + esc(i.detail || '') + '</textarea></div>' +
     '<div class="field"><label>Status</label><div class="seg" id="fStatus">' +
       STATUSES.map(s => '<button data-s="' + s + '" class="' + (i.status === s ? 'on' : '') + '">' + s + '</button>').join('') + '</div></div>' +
     '<div class="two">' +
@@ -1082,6 +1102,7 @@ function readSheet(i) {
   const g = id => { const el = $('#' + id); return el ? el.value : undefined; };
   const n = id => { const v = g(id); return v === '' || v === undefined ? null : Number(v); };
   i.title = ($('#fTitle').value || '').trim() || i.title;
+  i.detail = (g('fDetail') || '').trim() || undefined;
   i.due = g('fDue') || null;
   i.lead = g('fLead') || null;
   i.waiting_on = g('fWait') || null;
