@@ -249,6 +249,16 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
   z-index:70;opacity:0;pointer-events:none;transition:.2s;max-width:88vw;text-align:center}
 #toast.on{opacity:1;transform:translateX(-50%)}
 .srch{width:100%;margin-bottom:14px}
+.run{padding:10px 14px;border-bottom:1px solid var(--line)}
+.run .rh{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px}
+.run .rn{color:var(--ink-2);font-size:12.5px}
+.pbar{height:6px;border-radius:3px;background:var(--surface-2);margin:8px 0 4px;overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--accent);transition:width .6s}
+.run.queued .pbar i{background:var(--warning)}
+.agents{display:grid;gap:8px;padding:10px 14px}
+.agent{display:grid;gap:6px;padding:8px 0;border-top:1px solid var(--line)}
+.agent .an{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px}
+.agent .lr{font-size:12px;color:var(--muted)}
 .card.tell{padding:12px 14px;margin-bottom:14px;border-color:var(--accent)}
 .tform{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
 .tform label{grid-column:1/-1;font-size:11.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
@@ -642,6 +652,12 @@ function mergePlans(mine, theirs) {
   if (!out.north_star || !Object.keys(out.north_star).length) out.north_star = mine.north_star || theirs.north_star;
   // the engine's focus block (priorities, holds ledger) — whichever side computed it last
   if (mine.focus && ((mine.focus.stamp || '') > ((theirs.focus || {}).stamp || ''))) out.focus = mine.focus;
+  // agent runs: union by id, the copy updated last wins (the runner on the PC writes progress)
+  if (mine.runs || theirs.runs) {
+    const by = {};
+    (theirs.runs || []).concat(mine.runs || []).forEach(r => { if (!by[r.id] || (r.updated || '') > (by[r.id].updated || '')) by[r.id] = r; });
+    out.runs = Object.values(by).sort((a, b) => (a.requested_at || '').localeCompare(b.requested_at || ''));
+  }
   // "Tell Kit" messages: union by timestamp; a processed copy (status done) beats a new one
   if (mine.messages || theirs.messages) {
     const by = {};
@@ -911,11 +927,50 @@ document.addEventListener('submit', ev => {
   toast('Sent to Kit');
 });
 
+function agentsCard() {
+  const cards = S.plan.projects || [];
+  if (!cards.length) return '';
+  const runs = (S.plan.runs || []).slice().sort((a, b) => (b.requested_at || '').localeCompare(a.requested_at || ''));
+  const active = runs.filter(r => r.status === 'queued' || r.status === 'running');
+  const lastBy = {}; runs.forEach(r => { if (!lastBy[r.project]) lastBy[r.project] = r; });
+  const STAT = { queued: 'queued — the runner picks it up within a minute', running: 'running', done: 'done', failed: 'failed', refused: 'not allowed unattended' };
+  let body = '';
+  if (active.length) {
+    body += active.map(r => '<div class="run ' + r.status + '">' +
+      '<div class="rh"><b>' + esc(r.project) + '</b> <span class="chip">' + STAT[r.status] + '</span>' +
+        (r.note ? '<span class="rn">' + esc(r.note.slice(0, 90)) + '</span>' : '') + '</div>' +
+      '<div class="pbar"><i style="width:' + Math.max(2, Math.min(100, r.progress || 0)) + '%"></i></div>' +
+      '<div class="why">' + (r.progress || 0) + '% · ' + esc(r.step || '') + (r.steps ? ' · ' + r.steps + ' steps' : '') +
+        (r.started_at ? ' · started ' + String(r.started_at).slice(11, 16) + ' UTC' : '') + '</div></div>').join('');
+  }
+  body += '<div class="agents">' + cards.map(c => {
+    const l = lastBy[c.key];
+    const busy = l && (l.status === 'queued' || l.status === 'running');
+    return '<div class="agent"><div class="an"><i class="hdot" style="background:' + (HEALTH[c.health] || 'var(--muted)') + '"></i><b>' + esc(c.name) + '</b>' +
+      (l && !busy ? '<span class="lr">' + esc((l.finished_at || l.updated || '').slice(0, 10) ? fmtDate((l.finished_at || l.updated).slice(0, 10)) : '') + ' · ' + STAT[l.status] + (l.result ? ' — ' + esc(l.result.slice(0, 160)) : '') + '</span>' : '') + '</div>' +
+      '<form class="rform" data-run="' + esc(c.key) + '"><input type="text" placeholder="Note for the ' + esc(c.key) + ' agent (optional)…" autocomplete="off"' + (busy ? ' disabled' : '') + '>' +
+      '<button type="submit" class="opt"' + (busy ? ' disabled' : '') + '>' + (busy ? 'Running…' : 'Run') + '</button></form></div>';
+  }).join('') + '</div>';
+  return section('agents', 'Agents', 'push work to a project and let it run — Kit refreshes when it finishes', body, !!active.length, active.length || null);
+}
+document.addEventListener('submit', ev => {
+  const f = ev.target.closest('form[data-run]');
+  if (!f) return;
+  ev.preventDefault();
+  const key = f.dataset.run; const note = (f.querySelector('input').value || '').trim();
+  mutate(() => {
+    S.plan.runs = (S.plan.runs || []).concat([{ id: Math.random().toString(36).slice(2, 12), project: key, requested_at: new Date().toISOString(),
+      note: note || null, items: [], status: 'queued', progress: 0, step: 'queued', updated: new Date().toISOString(), by: 'Chad' }]);
+    if (S.sec.agents === undefined) S.sec.agents = true;
+  }, 'dp: run ' + key);
+  toast('Queued — the ' + key + ' agent starts within a minute');
+});
+
 function focusBlock() {
   const f = S.plan.focus;
   if (!f || !f.as_of) return '';
   const m = byId();
-  let h = tellKit();
+  let h = tellKit() + agentsCard();
   const pri = (f.priorities || []).map(x => ({ x, i: m[x.id] })).filter(o => o.i && !o.i.deleted && inArea(o.i));
   if (pri.length) {
     h += '<h2 class="sec">Your priorities <span class="note">' + (pri.length === 1 ? 'the one thing' : 'the two things') + ' · as of ' + fmtDate(f.as_of) + '</span></h2><div class="card focus">' +
@@ -1386,6 +1441,25 @@ window.addEventListener('online', () => { setSync('busy', 'Reconnecting…'); pu
 window.addEventListener('offline', () => setSync('off', 'Offline'));
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pull(true); });
 setInterval(() => { if (!document.hidden) pull(true); }, 120000);
+/* the runner and Kit's scripts write plan.json on disk while the app is open — pick that up live */
+let lastDisk = null;
+setInterval(async () => {
+  if (document.hidden || !FILE.ready || S.fileDirty || S.syncing) return;
+  try {
+    const txt = await (await FILE.handle.getFile()).text();
+    if (!txt.trim() || txt === lastDisk) return;
+    lastDisk = txt;
+    const disk = JSON.parse(txt);
+    if (!disk || !disk.items) return;
+    const merged = mergePlans(disk, S.plan);
+    const before = JSON.stringify([S.plan.items, S.plan.runs, S.plan.messages, S.plan.focus, S.plan.projects]);
+    const after = JSON.stringify([merged.items, merged.runs, merged.messages, merged.focus, merged.projects]);
+    if (before === after) return;
+    S.plan = merged; S.dirty = true; S.gen++;
+    render(); cacheLocal();
+    clearTimeout(saveTimer); saveTimer = setTimeout(() => push('dp: disk change'), 900);   // phone sees it too
+  } catch (e) {}
+}, 20000);
 
 /* ============================================================
    BOOT
