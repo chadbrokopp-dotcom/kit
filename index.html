@@ -249,6 +249,15 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
   z-index:70;opacity:0;pointer-events:none;transition:.2s;max-width:88vw;text-align:center}
 #toast.on{opacity:1;transform:translateX(-50%)}
 .srch{width:100%;margin-bottom:14px}
+.card.tell{padding:12px 14px;margin-bottom:14px;border-color:var(--accent)}
+.tform{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.tform label{grid-column:1/-1;font-size:11.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.tform textarea{font:inherit;font-size:13.5px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);resize:vertical}
+.tform textarea:focus{outline:none;border-color:var(--accent)}
+.card.tell .prev{margin-top:10px;font-size:12.5px;line-height:1.5}
+.card.tell .msg{padding:6px 0;border-top:1px solid var(--line)}
+.card.tell .kit{color:var(--ink-2)}
+.card.tell .when{color:var(--muted)}
 .reply{padding:0 14px 12px 46px;width:100%}
 .reply .prev{font-size:12.5px;color:var(--ink-2);line-height:1.5;margin-bottom:6px}
 .reply .prev .when{color:var(--muted)}
@@ -633,6 +642,14 @@ function mergePlans(mine, theirs) {
   if (!out.north_star || !Object.keys(out.north_star).length) out.north_star = mine.north_star || theirs.north_star;
   // the engine's focus block (priorities, holds ledger) — whichever side computed it last
   if (mine.focus && ((mine.focus.stamp || '') > ((theirs.focus || {}).stamp || ''))) out.focus = mine.focus;
+  // "Tell Kit" messages: union by timestamp; a processed copy (status done) beats a new one
+  if (mine.messages || theirs.messages) {
+    const by = {};
+    (theirs.messages || []).concat(mine.messages || []).forEach(m => {
+      const k = m.at; if (!by[k] || (m.status === 'done' && by[k].status !== 'done')) by[k] = m;
+    });
+    out.messages = Object.values(by).sort((a, b) => (a.at || '').localeCompare(b.at || ''));
+  }
   out.updated = new Date().toISOString();
   return out;
 }
@@ -823,7 +840,7 @@ function pageNow() {
     tile(blk.length, 'Blocked', 'var(--serious)') +
     tile(over.length, 'Overdue', 'var(--critical)') + '</div>';
 
-  h += focusBlock();
+  h += (S.plan.focus && S.plan.focus.as_of) ? focusBlock() : tellKit();
 
   h += '<h2 class="sec">Do now <span class="note">top 5 unblocked, by priority</span></h2>' +
        '<div class="card">' + (list.length
@@ -873,11 +890,32 @@ document.addEventListener('submit', ev => {
 });
 
 /* ---------- the engine's focus: your 1-2 priorities, and what is on hold ---------- */
+function tellKit() {
+  const msgs = (S.plan.messages || []).slice().sort((a, b) => (b.at || '').localeCompare(a.at || '')).slice(0, 3);
+  return '<div class="card tell">' +
+    '<form class="tform" id="tellKit"><label>Tell Kit</label>' +
+      '<textarea rows="2" placeholder="What matters to you right now — what to prioritise, what to park, a decision, a steer for a project. Kit pins your priorities, tells the agents, and reports back here."></textarea>' +
+      '<button type="submit" class="opt">Send to Kit</button></form>' +
+    (msgs.length ? '<div class="prev">' + msgs.map(m => '<div class="msg"><div><span class="when">' + fmtDate(String(m.at).slice(0, 10)) + '</span> ' + esc(m.text) + '</div>' +
+      '<div class="kit">' + (m.status === 'done' ? '<b>Kit:</b> ' + esc(m.result || 'noted') + (m.projects && m.projects.length ? ' <span class="chip">→ ' + esc(m.projects.join(', ')) + '</span>' : '')
+                                               : '<span class="chip">Kit is on it — usually within the hour</span>') + '</div></div>').join('') + '</div>' : '') +
+  '</div>';
+}
+document.addEventListener('submit', ev => {
+  const f = ev.target.closest('form#tellKit');
+  if (!f) return;
+  ev.preventDefault();
+  const ta = f.querySelector('textarea'); const text = (ta.value || '').trim();
+  if (!text) return;
+  mutate(() => { S.plan.messages = (S.plan.messages || []).concat([{ at: new Date().toISOString(), text: text, by: 'Chad', status: 'new' }]); }, 'dp: tell kit');
+  toast('Sent to Kit');
+});
+
 function focusBlock() {
   const f = S.plan.focus;
   if (!f || !f.as_of) return '';
   const m = byId();
-  let h = '';
+  let h = tellKit();
   const pri = (f.priorities || []).map(x => ({ x, i: m[x.id] })).filter(o => o.i && !o.i.deleted && inArea(o.i));
   if (pri.length) {
     h += '<h2 class="sec">Your priorities <span class="note">' + (pri.length === 1 ? 'the one thing' : 'the two things') + ' · as of ' + fmtDate(f.as_of) + '</span></h2><div class="card focus">' +
