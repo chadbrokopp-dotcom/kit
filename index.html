@@ -271,6 +271,9 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
 .reply{padding:0 14px 12px 46px;width:100%}
 .reply .prev{font-size:12.5px;color:var(--ink-2);line-height:1.5;margin-bottom:6px}
 .reply .prev .when{color:var(--muted)}
+.push{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--ink-2)}
+.push .why{flex:1;min-width:180px}
+.push .lp{color:var(--muted)}
 .rform{display:flex;gap:6px}
 .rform input{flex:1;font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink)}
 .rform input:focus{outline:none;border-color:var(--accent)}
@@ -902,7 +905,7 @@ document.addEventListener('submit', ev => {
   const text = (inp.value || '').trim();
   if (!i || !text) return;
   mutate(() => { i.replies = (i.replies || []).concat([{ at: new Date().toISOString(), text: text, by: 'Chad' }]); touch(i); }, 'dp: reply #' + i.id);
-  toast('Sent to Kit — the agents see it within the hour');
+  toast('Sent to Kit — the agents see it within 15 minutes, or press Push to agents now');
 });
 
 /* ---------- the engine's focus: your 1-2 priorities, and what is on hold ---------- */
@@ -934,10 +937,15 @@ function agentsCard() {
   const active = runs.filter(r => r.status === 'queued' || r.status === 'running');
   const lastBy = {}; runs.forEach(r => { if (!lastBy[r.project]) lastBy[r.project] = r; });
   const STAT = { queued: 'queued — the runner picks it up within a minute', running: 'running', done: 'done', failed: 'failed', refused: 'not allowed unattended' };
-  let body = '';
+  // "Push to agents now": a run for project "Kit" — the runner refreshes the briefs the agents read, on demand
+  const kit = lastBy.Kit; const kitBusy = kit && (kit.status === 'queued' || kit.status === 'running');
+  let body = '<div class="push"><button type="button" class="opt" data-push="1"' + (kitBusy ? ' disabled' : '') + '>' + (kitBusy ? 'Pushing…' : 'Push to agents now') + '</button>' +
+    '<span class="why">Your ticks, decisions, replies and notes reach the agents\' briefs every 15 minutes anyway — press this to send them now' +
+    (kit && !kitBusy ? '<br><span class="lp">last push ' + esc(fmtDate((kit.finished_at || kit.updated || '').slice(0, 10))) + ' ' + esc(String(kit.finished_at || kit.updated || '').slice(11, 16)) + ' UTC · ' + STAT[kit.status] +
+      (kit.result ? ' — ' + esc(kit.result.slice(0, 200)) : '') + '</span>' : '') + '</span></div>';
   if (active.length) {
     body += active.map(r => '<div class="run ' + r.status + '">' +
-      '<div class="rh"><b>' + esc(r.project) + '</b> <span class="chip">' + STAT[r.status] + '</span>' +
+      '<div class="rh"><b>' + (r.project === 'Kit' ? 'Kit · push to agents' : esc(r.project)) + '</b> <span class="chip">' + STAT[r.status] + '</span>' +
         (r.note ? '<span class="rn">' + esc(r.note.slice(0, 90)) + '</span>' : '') + '</div>' +
       '<div class="pbar"><i style="width:' + Math.max(2, Math.min(100, r.progress || 0)) + '%"></i></div>' +
       '<div class="why">' + (r.progress || 0) + '% · ' + esc(r.step || '') + (r.steps ? ' · ' + r.steps + ' steps' : '') +
@@ -953,6 +961,16 @@ function agentsCard() {
   }).join('') + '</div>';
   return section('agents', 'Agents', 'push work to a project and let it run — Kit refreshes when it finishes', body, !!active.length, active.length || null);
 }
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-push]');
+  if (!b || b.disabled) return;
+  mutate(() => {
+    S.plan.runs = (S.plan.runs || []).concat([{ id: Math.random().toString(36).slice(2, 12), project: 'Kit', requested_at: new Date().toISOString(),
+      note: null, items: [], status: 'queued', progress: 0, step: 'queued', updated: new Date().toISOString(), by: 'Chad' }]);
+    if (S.sec.agents === undefined) S.sec.agents = true;
+  }, 'dp: push to agents');
+  toast('Pushing — the agents\' briefs are refreshed within a minute');
+});
 document.addEventListener('submit', ev => {
   const f = ev.target.closest('form[data-run]');
   if (!f) return;
