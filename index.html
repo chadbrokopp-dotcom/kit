@@ -277,6 +277,23 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
 .rform{display:flex;gap:6px}
 .rform input{flex:1;font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink)}
 .rform input:focus{outline:none;border-color:var(--accent)}
+/* Ferien tab (DP-D14) */
+.vacnums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:14px;text-align:center}
+.vacnums .b{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.vacnums .l{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-top:2px}
+.vacnums .warn .b{color:var(--warning)}
+.vacmeter{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--surface-2);margin:0 14px 14px}
+.vacmeter i{display:block;height:100%}
+.vacrow{display:flex;gap:10px;align-items:baseline;padding:9px 14px;border-top:1px solid var(--line);font-size:13.5px;flex-wrap:wrap}
+.vacrow .dates{font-variant-numeric:tabular-nums;white-space:nowrap}
+.vacrow .days{font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.vacrow .lbl{flex:1;color:var(--ink-2);min-width:120px}
+.vacrow .chip.entered{color:var(--ok,#2e7d4f)}
+.vacform{display:grid;grid-template-columns:1fr 1fr 64px;gap:8px;padding:12px 14px;border-top:1px solid var(--line)}
+.vacform input{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);min-width:0}
+.vacform input:focus{outline:none;border-color:var(--accent)}
+.vacform .full{grid-column:1/-1;display:flex;gap:8px}
+.vacform .full input{flex:1}
 .card.decisions{border-color:var(--warning)}
 .item.dec .opts{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 12px 46px;width:100%}
 .item.dec{flex-wrap:wrap}
@@ -655,6 +672,8 @@ function mergePlans(mine, theirs) {
   if (!out.north_star || !Object.keys(out.north_star).length) out.north_star = mine.north_star || theirs.north_star;
   // the engine's focus block (priorities, holds ledger) — whichever side computed it last
   if (mine.focus && ((mine.focus.stamp || '') > ((theirs.focus || {}).stamp || ''))) out.focus = mine.focus;
+  // the vacation budget (Ferien tab) — one block, last write wins
+  if (mine.vacation && ((mine.vacation.updated || '') > ((theirs.vacation || {}).updated || ''))) out.vacation = mine.vacation;
   // agent runs: union by id, the copy updated last wins (the runner on the PC writes progress)
   if (mine.runs || theirs.runs) {
     const by = {};
@@ -1162,15 +1181,20 @@ function render() {
   if (!S.sec) S.sec = {};
   renderBanner();
   const areas = items().filter(i => i.type === 'A').map(i => i.title);
-  $('#hSub').textContent = (S.area || 'All areas') + ' · ' +
-    items().filter(i => isTask(i) && i.status === 'Active').length + ' active';
+  $('#hSub').textContent = S.area === FERIEN
+    ? 'Ferien · ' + vacSums().left + ' days left'
+    : (S.area || 'All areas') + ' · ' +
+      items().filter(i => isTask(i) && i.status === 'Active').length + ' active';
   $('#filters').innerHTML =
     '<button data-area="" class="' + (!S.area ? 'on' : '') + '">All</button>' +
     areas.map(a => '<button data-area="' + esc(a) + '" class="' + (S.area === a ? 'on' : '') + '">' +
-      esc(a.charAt(0) + a.slice(1).toLowerCase()) + '</button>').join('');
+      esc(a.charAt(0) + a.slice(1).toLowerCase()) + '</button>').join('') +
+    '<button data-area="' + FERIEN + '" class="' + (S.area === FERIEN ? 'on' : '') + '">Ferien</button>';
 
   const srch = '<input class="srch" type="text" id="srch" placeholder="Search tasks and notes…" value="' + esc(S.q) + '" autocapitalize="off">';
-  $('#view').innerHTML = S.q.trim()
+  $('#view').innerHTML = S.area === FERIEN
+    ? pageFerien()
+    : S.q.trim()
     ? srch + pageSearch()
     : srch + '<div style="height:12px"></div>' + pageNow() + pageProjects() + pagePersonal() + pageGoals() + pageOutline();
   LS.set(K.ui, { area: S.area, showDone: S.showDone, open: S.open, sec: S.sec });
@@ -1402,6 +1426,93 @@ function applyTheme() {
   const t = LS.get('dp.theme', 'auto');
   document.documentElement.setAttribute('data-theme', t);
 }
+
+/* ============================================================
+   FERIEN TAB (DP-D14) — plan.vacation = {updated, year, total, entries:[{id,from,to,days,label,status}]}
+   ============================================================ */
+const FERIEN = '__FERIEN__';
+const ZH_HOLIDAYS = { '2026-12-25': 1, '2027-01-01': 1, '2027-04-02': 1, '2027-04-05': 1, '2027-05-06': 1, '2027-05-17': 1 };
+function vac() { return S.plan.vacation || { year: new Date().getFullYear(), total: 0, entries: [] }; }
+function vacDays(from, to) {  // working days Mon–Fri, minus Zürich public holidays
+  let n = 0;
+  for (let d = new Date(from + 'T12:00:00'); ; d.setDate(d.getDate() + 1)) {
+    const k = d.toISOString().slice(0, 10);
+    if (k > to) break;
+    if (d.getDay() !== 0 && d.getDay() !== 6 && !ZH_HOLIDAYS[k]) n++;
+    if (n > 200) break;
+  }
+  return n;
+}
+function vacSums() {
+  const v = vac(); let entered = 0, planned = 0;
+  (v.entries || []).forEach(e => { if (e.status === 'entered') entered += e.days || 0; else planned += e.days || 0; });
+  return { entered, planned, left: (v.total || 0) - entered - planned };
+}
+function pageFerien() {
+  const v = vac(), s = vacSums();
+  const rows = (v.entries || []).slice().sort((a, b) => (a.from || '').localeCompare(b.from || '')).map(e =>
+    '<div class="vacrow"><span class="dates">' + fmtDate(e.from) + (e.to && e.to !== e.from ? ' – ' + fmtDate(e.to) : '') + '</span>' +
+    '<span class="days">' + e.days + ' d</span><span class="lbl">' + esc(e.label || '') + '</span>' +
+    '<button class="opt chip ' + (e.status === 'entered' ? 'entered' : '') + '" data-vac-status="' + e.id + '">' +
+      (e.status === 'entered' ? 'entered at work' : 'planned — tap when entered') + '</button>' +
+    '<button class="opt" data-vac-del="' + e.id + '">Remove</button></div>').join('');
+  return '<h2 class="sec">Ferien ' + esc(String(v.year || '')) + ' <span class="note">days off — the plan and what is left</span></h2>' +
+    '<div class="card">' +
+      '<div class="vacnums">' +
+        '<div class="' + (s.left < 4 ? 'warn' : '') + '"><div class="b">' + s.left + '</div><div class="l">left / reserve</div></div>' +
+        '<div><div class="b">' + s.planned + '</div><div class="l">planned</div></div>' +
+        '<div><div class="b">' + s.entered + '</div><div class="l">entered</div></div>' +
+        '<div><div class="b">' + (v.total || 0) + '</div><div class="l">total</div></div>' +
+      '</div>' +
+      '<div class="vacmeter"><i style="background:var(--muted);width:' + (v.total ? s.entered / v.total * 100 : 0) + '%"></i>' +
+        '<i style="background:var(--accent);width:' + (v.total ? s.planned / v.total * 100 : 0) + '%"></i></div>' +
+      rows +
+      '<form class="vacform" id="vacAdd">' +
+        '<input type="date" id="vFrom" required aria-label="from"><input type="date" id="vTo" aria-label="to (optional)">' +
+        '<input type="number" id="vDays" min="0" step="0.5" placeholder="days" aria-label="days (auto if empty)">' +
+        '<div class="full"><input type="text" id="vLabel" placeholder="What for (e.g. Sportferien with Rodney)…">' +
+        '<button type="submit" class="opt">Add</button></div>' +
+      '</form>' +
+      '<div class="vacrow"><span class="lbl">Total days available this year</span>' +
+        '<form id="vacTotal" style="display:flex;gap:6px"><input type="number" id="vTotal" min="0" step="0.5" value="' + (v.total || 0) + '" style="width:70px;font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink)">' +
+        '<button type="submit" class="opt">Save</button></form></div>' +
+    '</div>' +
+    '<div class="note" style="padding:8px 4px">Weekends and Zürich public holidays never cost a day — leave "days" empty and it counts the working days for you. "Entered" means the request is in at work; the reserve number is what is left for emergencies.</div>';
+}
+document.addEventListener('submit', ev => {
+  const f = ev.target;
+  if (f.id === 'vacAdd') {
+    ev.preventDefault();
+    const from = $('#vFrom').value; if (!from) return;
+    const to = $('#vTo').value || from;
+    if (to < from) { toast('End date is before start date'); return; }
+    const days = $('#vDays').value !== '' ? Number($('#vDays').value) : vacDays(from, to);
+    const label = ($('#vLabel').value || '').trim();
+    mutate(() => {
+      const v = S.plan.vacation = S.plan.vacation || { year: new Date(from).getFullYear(), total: 0, entries: [] };
+      v.entries = (v.entries || []).concat([{ id: Math.random().toString(36).slice(2, 10), from, to, days, label: label || null, status: 'planned' }]);
+      v.updated = new Date().toISOString();
+    }, 'dp: ferien add');
+    toast('Added — ' + days + ' day' + (days === 1 ? '' : 's'));
+    return;
+  }
+  if (f.id === 'vacTotal') {
+    ev.preventDefault();
+    const t = Number($('#vTotal').value || 0);
+    mutate(() => { const v = S.plan.vacation = S.plan.vacation || { year: new Date().getFullYear(), total: 0, entries: [] }; v.total = t; v.updated = new Date().toISOString(); }, 'dp: ferien total');
+    toast('Saved — ' + t + ' days total');
+  }
+});
+document.addEventListener('click', ev => {
+  const del = ev.target.closest('[data-vac-del]'), st = ev.target.closest('[data-vac-status]');
+  if (!del && !st) return;
+  mutate(() => {
+    const v = S.plan.vacation; if (!v) return;
+    if (del) v.entries = (v.entries || []).filter(e => e.id !== del.dataset.vacDel);
+    else { const e = (v.entries || []).find(e => e.id === st.dataset.vacStatus); if (e) e.status = e.status === 'entered' ? 'planned' : 'entered'; }
+    v.updated = new Date().toISOString();
+  }, 'dp: ferien edit');
+});
 
 /* ============================================================
    EVENTS
