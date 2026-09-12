@@ -295,6 +295,10 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
 .vacform .full{grid-column:1/-1;display:flex;gap:8px}
 .vacform .full input{flex:1}
 .card.decisions{border-color:var(--warning)}
+.card.proposals{border-color:var(--accent)}
+.item.prop .pwhat{padding:0 14px 8px 46px;font-size:12.5px;color:var(--ink-2);line-height:1.5;width:100%}
+.item.prop .pwhat b{color:var(--ink)}
+.item.prop.stale [data-prop-approve]{opacity:.45;pointer-events:none}
 .item.dec .opts{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 12px 46px;width:100%}
 .item.dec{flex-wrap:wrap}
 .opt{font:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--accent);border-radius:8px;background:transparent;color:var(--accent);cursor:pointer}
@@ -680,6 +684,12 @@ function mergePlans(mine, theirs) {
     (theirs.runs || []).concat(mine.runs || []).forEach(r => { if (!by[r.id] || (r.updated || '') > (by[r.id].updated || '')) by[r.id] = r; });
     out.runs = Object.values(by).sort((a, b) => (a.requested_at || '').localeCompare(b.requested_at || ''));
   }
+  // proposals (DP-D15): union by id, the copy updated last wins (approve/reject on any device, Kit proposes on the PC)
+  if (mine.proposals || theirs.proposals) {
+    const by = {};
+    (theirs.proposals || []).concat(mine.proposals || []).forEach(p => { if (!by[p.id] || (p.updated || '') > (by[p.id].updated || '')) by[p.id] = p; });
+    out.proposals = Object.values(by).sort((a, b) => (a.created || '').localeCompare(b.created || ''));
+  }
   // "Tell Kit" messages: union by timestamp; a processed copy (status done) beats a new one
   if (mine.messages || theirs.messages) {
     const by = {};
@@ -879,6 +889,7 @@ function pageNow() {
     tile(over.length, 'Overdue', 'var(--critical)') + '</div>';
 
   h += (S.plan.focus && S.plan.focus.as_of) ? focusBlock() : tellKit();
+  h += proposalsCard();
 
   h += '<h2 class="sec">Do now <span class="note">top 5 unblocked, by priority</span></h2>' +
        '<div class="card">' + (list.length
@@ -906,6 +917,80 @@ function pageNow() {
   }
   return h;
 }
+
+/* ---------- proposals (DP-D15): Kit proposes, Chad approves with one tap; the same door dp.py approve uses ---------- */
+const PROP_OPS = ['set', 'new', 'delete', 'vacation_set'];
+function propOps(p) { return ((p.patch || {}).ops || []); }
+function propStale(p) {                       // light re-check on the device: does the patch still make sense?
+  const m = byId();
+  for (const o of propOps(p)) {
+    if (PROP_OPS.indexOf(o.op) < 0) return 'contains an op the app cannot apply';
+    if (o.op === 'set' && (!m[o.id] || m[o.id].deleted)) return '#' + o.id + ' no longer exists';
+    if (o.op === 'new' && o.item && o.item.parent != null && !m[o.item.parent]) return 'parent #' + o.item.parent + ' no longer exists';
+    if (o.op === 'delete' && (!m[o.id] || m[o.id].deleted)) return '#' + o.id + ' no longer exists';
+    if (o.op === 'delete' && childrenOf(o.id).some(c => !c.deleted)) return '#' + o.id + ' has children now';
+  }
+  return null;
+}
+function propLine(p) {
+  const m = byId();
+  return propOps(p).map(o => {
+    if (o.op === 'set') {
+      const i = m[o.id] || {};
+      return '<b>#' + o.id + '</b> ' + esc(headline(i.title || '', 40)) + ' — ' + Object.keys(o.fields || {}).map(f =>
+        f === 'notes' || f === 'replies' ? esc(f) + ' +' : esc(f) + ': ' + esc(i[f] == null || i[f] === '' ? '—' : String(i[f]).slice(0, 30)) + ' → <b>' + esc(String(o.fields[f] == null ? '—' : o.fields[f]).slice(0, 40)) + '</b>').join(', ');
+    }
+    if (o.op === 'new') return 'new row <b>' + esc(headline((o.item || {}).title || '', 60)) + '</b>' + ((o.item || {}).parent != null ? ' under #' + o.item.parent : '');
+    if (o.op === 'delete') return 'remove <b>#' + o.id + '</b> ' + esc(headline((m[o.id] || {}).title || '', 40));
+    if (o.op === 'vacation_set') return 'replace the vacation budget';
+    return esc(o.op);
+  }).join('<br>');
+}
+function proposalsCard() {
+  const open = (S.plan.proposals || []).filter(p => p.status === 'open');
+  if (!open.length) return '';
+  return '<h2 class="sec">Kit proposes <span class="note">nothing changes until you approve</span></h2><div class="card proposals">' +
+    open.map(p => {
+      const stale = propStale(p);
+      return '<div class="item dec prop' + (stale ? ' stale' : '') + '" data-prop="' + esc(p.id) + '">' +
+        '<div class="item-main"><div class="t">' + esc(p.title) + '</div>' +
+          (p.rationale ? '<div class="sub">' + esc(p.rationale.length > 160 ? p.rationale.slice(0, 159) + '…' : p.rationale) + '</div>' : '') +
+          '<div class="meta"><span class="chip">by ' + esc(p.by || 'Kit') + '</span>' + (p.created ? '<span class="chip">' + fmtDate(String(p.created).slice(0, 10)) + '</span>' : '') +
+          (p.risk && p.risk !== 'low' ? '<span class="chip">' + esc(p.risk) + ' risk</span>' : '') + '</div></div>' +
+        '<div class="pwhat">' + propLine(p) + (stale ? '<br><i>changed since this was proposed (' + esc(stale) + ') — ask Kit to propose it again</i>' : '') + '</div>' +
+        ((p.evidence || []).length ? '<div class="pwhat">' + p.evidence.slice(0, 3).map(e => '· ' + esc(String(e).slice(0, 120))).join('<br>') + '</div>' : '') +
+        '<div class="opts"><button class="opt" data-prop-approve="' + esc(p.id) + '">Approve</button>' +
+          '<button class="opt ghost" data-prop-reject="' + esc(p.id) + '">Not this</button></div>' +
+      '</div>';
+    }).join('') + '</div>';
+}
+function applyPropOps(p) {                    // mirrors dp.apply_patch for the four proposal ops
+  const m = byId();
+  for (const o of propOps(p)) {
+    if (o.op === 'set') { const i = m[o.id]; Object.keys(o.fields || {}).forEach(f => { if (f !== 'id' && f !== 'legacy_row') i[f] = o.fields[f]; }); touch(i); }
+    else if (o.op === 'new') {
+      const id = S.plan.next_id; const it = Object.assign({ id, status: '', blocked_by: [], scoring: 'manual', manual_score: null, parent: null, area: null, lead: null, notes: null, due: null }, o.item || {}, { id });
+      S.plan.items.push(it); touch(it); S.plan.next_id = id + 1; m[id] = it;
+    }
+    else if (o.op === 'delete') { const i = m[o.id]; i.deleted = true; touch(i); }
+    else if (o.op === 'vacation_set') { S.plan.vacation = Object.assign({}, o.vacation, { updated: new Date().toISOString() }); }
+  }
+}
+document.addEventListener('click', ev => {
+  const a = ev.target.closest('[data-prop-approve]'), r = ev.target.closest('[data-prop-reject]');
+  if (!a && !r) return;
+  const id = (a || r).dataset.propApprove || (a || r).dataset.propReject;
+  const p = (S.plan.proposals || []).find(x => x.id === id);
+  if (!p || p.status !== 'open') return;
+  if (a && propStale(p)) { toast('Changed since proposed — ask Kit to propose it again'); return; }
+  mutate(() => {
+    const now = new Date().toISOString();
+    if (a) applyPropOps(p);
+    p.status = a ? 'approved' : 'rejected'; p.decided_at = now; p.decided_by = 'Chad'; p.via = 'app'; p.updated = now;
+    if (r) p.why = 'declined in the app';
+  }, 'dp: ' + (a ? 'approved ' : 'rejected ') + id);
+  toast(a ? 'Approved — done' : 'Declined — Kit will not ask again');
+});
 
 /* ---------- replies: Chad types a clarification or answer on the spot; it reaches the agents via the briefs ---------- */
 function replyBox(i) {
