@@ -313,14 +313,8 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
 .pfform .full{grid-column:1/-1}
 .pfsum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 14px}
 .pfsum .b{font-size:20px;font-weight:650}.pfsum .l{font-size:11px;color:var(--muted)}
-.pfhero{padding:14px 16px;border-radius:var(--r);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 14%,var(--surface)),var(--surface));border:1px solid var(--ring);margin-bottom:12px}
-.pfhero .t{font-size:15px;font-weight:650;letter-spacing:-.01em}
-.pfhero .s{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5}
-.pillar{margin-top:14px}
-.pillar .pch{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:0 4px 8px}
-.pillar .pch h2{margin:0;font-size:15px}
-.pillar .pch .goal{font-size:12px;color:var(--ink-2)}
-.pillar .pch .hrs{margin-left:auto;font-size:12px;color:var(--muted)}
+.ptag{font-size:10.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:6px;color:#fff;background:var(--muted)}
+.ptag.wealth{background:var(--accent)}.ptag.health{background:var(--good)}.ptag.love{background:var(--serious)}
 .pline .why{font-size:13.5px;color:var(--ink);margin-top:6px;line-height:1.5}
 .pline .serves{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .pline .bar{height:6px;border-radius:99px;background:var(--surface-2);margin-top:8px;overflow:hidden}
@@ -1661,25 +1655,19 @@ function pagePortfolio() {
   const lines = pfLines();
   if (!lines.length) return '<h2 class="sec">Portfolio</h2><div class="card"><div class="empty">No portfolio yet — Kit drafts it from the plan and your answers (DP\\PORTFOLIO.md).</div></div>';
   const fmtN = n => n == null ? '—' : Number(n).toLocaleString('de-CH');
-  const hrsOf = a => lines.filter(l => l.area === a).reduce((s, l) => s + (l.hours_week || 0), 0);
+  const pillarsOf = l => (Array.isArray(l.pillars) && l.pillars.length ? l.pillars : [l.area]).filter(Boolean);   // a line may serve several pillars (Chad 12.09)
+  const hrsOf = a => lines.filter(l => pillarsOf(l).indexOf(a) >= 0).reduce((s, l) => s + (l.hours_week || 0), 0);
   const maxH = Math.max(1, ...lines.map(l => l.hours_week || 0));
   const mine = lines.filter(l => l.source === 'Chad').length;
-  const invest = lines.filter(l => l.verdict === 'invest');
-  let h = '<div class="pfhero"><div class="t">Freedom = wealth × health × love</div>' +
-    '<div class="s">Where an hour of your time is worth most, and why. ' + (invest.length ? 'Right now: <b>' + esc(invest.map(l => l.name).join('</b> and <b>')) + '</b>. ' : '') +
-    (mine < lines.length ? (lines.length - mine) + ' of ' + lines.length + ' lines still carry Kit’s guesses — tap Edit numbers to make them yours.' : 'Every line carries your numbers.') + '</div></div>' +
-    '<div class="card"><div class="pfsum">' + PILLARS.map(p => '<div><div class="b">' + fmtN(hrsOf(p.area)) + ' h</div><div class="l">' + p.name.toLowerCase() + ' / week</div></div>').join('') + '</div></div>';
-  PILLARS.forEach(p => {
-    const ls = lines.filter(l => l.area === p.area);
-    if (!ls.length) return;
-    const goals = ((S.plan.north_star || {}).goals_2032 || []).filter(g => g.domain === p.domain);
-    h += '<section class="pillar" data-pillar="' + p.area + '"><div class="pch"><h2>' + p.name + '</h2>' +
-      (goals.length ? '<span class="goal">2032: ' + esc(goals.map(g => g.goal).join(' · ')) + '</span>' : '') +
-      '<span class="hrs">' + fmtN(hrsOf(p.area)) + ' h/week</span></div><div class="card">' +
-      ls.map(l => {
+  let h = '<h2 class="sec">Portfolio <span class="note">where an hour of your time is worth most · ' +
+    (mine < lines.length ? (lines.length - mine) + ' of ' + lines.length + ' lines still carry Kit’s guesses' : 'every line carries your numbers') + '</span></h2>' +
+    '<div class="card"><div class="pfsum">' + PILLARS.map(p => '<div><div class="b">' + fmtN(hrsOf(p.area)) + ' h</div><div class="l">' + p.name.toLowerCase() + ' / week</div></div>').join('') + '</div></div>' +
+    '<div class="card" style="margin-top:10px">' +
+      lines.map(l => {
         const ev = pfEv(l), editing = pfEditing === l.id, g = goal2032(l.goal);
+        const tags = pillarsOf(l).map(a => { const p = PILLARS.find(x => x.area === a); return p ? '<span class="ptag ' + p.area.toLowerCase() + '">' + p.name + '</span>' : ''; }).join('');
         return '<div class="pline" data-pf="' + esc(l.id) + '">' +
-          '<div class="hd"><span class="nm">' + esc(l.name) + '</span>' +
+          '<div class="hd">' + tags + '<span class="nm">' + esc(l.name) + '</span>' +
             '<button class="vchip ' + esc(l.verdict) + '" data-pf-verdict="' + esc(l.id) + '" title="tap to choose a verdict">' + esc(VERDICT_WORD[l.verdict] || l.verdict) + '</button>' +
             '<span class="chip">' + (l.source === 'Chad' ? 'your numbers' : l.source === 'file' ? 'from the project' : 'Kit’s guess') + '</span></div>' +
           (l.payoff ? '<div class="why">' + esc(l.payoff) + '</div>' : '') +
@@ -1705,8 +1693,7 @@ function pagePortfolio() {
           '<label class="full">Your note<textarea name="note" rows="2">' + esc(l.note || '') + '</textarea></label>' +
           '<div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button type="submit" class="opt">Save numbers</button></div></form>' : '') +
         '</div>';
-      }).join('') + '</div></section>';
-  });
+      }).join('') + '</div>';
   h += '<div class="note" style="padding:8px 4px">Value per hour = payoff × odds ÷ hours still needed. Lines without a franc payoff (health, family, a gate) rank by their verdict alone — they are what the money is for. Tap a verdict or Edit to open a line; nothing changes until you choose or save. Kit reads this page before every piece of advice.</div>';
   return h;
 }
