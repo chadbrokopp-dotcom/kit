@@ -294,6 +294,25 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
 .vacform input:focus{outline:none;border-color:var(--accent)}
 .vacform .full{grid-column:1/-1;display:flex;gap:8px}
 .vacform .full input{flex:1}
+/* portfolio tab (DP-D16) */
+.pline{padding:12px 14px;border-top:1px solid var(--line)}
+.pline:first-child{border-top:0}
+.pline .hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pline .hd .nm{font-weight:600;flex:1;min-width:140px}
+.pline .pay{font-size:13px;color:var(--ink-2);margin-top:6px;line-height:1.5}
+.pline .nums{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-top:6px}
+.pline .nums b{color:var(--ink)}
+.pline .unl{font-size:12px;color:var(--muted);margin-top:4px}
+.pline .act{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.vchip{font:inherit;font-size:11px;font-weight:650;letter-spacing:.02em;text-transform:uppercase;padding:3px 9px;border-radius:99px;border:1px solid transparent;cursor:pointer;color:#fff;background:var(--muted)}
+.vchip.invest{background:var(--accent)}.vchip.protect{background:var(--good)}.vchip.test{background:var(--warning)}.vchip.decide{background:var(--serious)}
+.vchip.maintain{background:var(--muted)}.vchip.cap{background:var(--muted);opacity:.8}.vchip.park{background:transparent;color:var(--muted);border-color:var(--line)}
+.pfform{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.pfform label{font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.pfform input,.pfform textarea{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);min-width:0}
+.pfform .full{grid-column:1/-1}
+.pfsum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 14px}
+.pfsum .b{font-size:20px;font-weight:650}.pfsum .l{font-size:11px;color:var(--muted)}
 .card.decisions{border-color:var(--warning)}
 .card.proposals{border-color:var(--accent)}
 .item.prop .pwhat{padding:0 14px 8px 46px;font-size:12.5px;color:var(--ink-2);line-height:1.5;width:100%}
@@ -678,6 +697,8 @@ function mergePlans(mine, theirs) {
   if (mine.focus && ((mine.focus.stamp || '') > ((theirs.focus || {}).stamp || ''))) out.focus = mine.focus;
   // the vacation budget (Ferien tab) — one block, last write wins
   if (mine.vacation && ((mine.vacation.updated || '') > ((theirs.vacation || {}).updated || ''))) out.vacation = mine.vacation;
+  // the portfolio (DP-D16) — one block, last write wins
+  if (mine.portfolio && ((mine.portfolio.updated || '') > ((theirs.portfolio || {}).updated || ''))) out.portfolio = mine.portfolio;
   // agent runs: union by id, the copy updated last wins (the runner on the PC writes progress)
   if (mine.runs || theirs.runs) {
     const by = {};
@@ -1268,17 +1289,22 @@ function render() {
   const areas = items().filter(i => i.type === 'A').map(i => i.title);
   $('#hSub').textContent = S.area === FERIEN
     ? 'Ferien · ' + vacSums().left + ' days left'
+    : S.area === PORTFOLIO
+    ? 'Portfolio · where your hours are worth most'
     : (S.area || 'All areas') + ' · ' +
       items().filter(i => isTask(i) && i.status === 'Active').length + ' active';
   $('#filters').innerHTML =
     '<button data-area="" class="' + (!S.area ? 'on' : '') + '">All</button>' +
     areas.map(a => '<button data-area="' + esc(a) + '" class="' + (S.area === a ? 'on' : '') + '">' +
       esc(a.charAt(0) + a.slice(1).toLowerCase()) + '</button>').join('') +
+    '<button data-area="' + PORTFOLIO + '" class="' + (S.area === PORTFOLIO ? 'on' : '') + '">Portfolio</button>' +
     '<button data-area="' + FERIEN + '" class="' + (S.area === FERIEN ? 'on' : '') + '">Ferien</button>';
 
   const srch = '<input class="srch" type="text" id="srch" placeholder="Search tasks and notes…" value="' + esc(S.q) + '" autocapitalize="off">';
   $('#view').innerHTML = S.area === FERIEN
     ? pageFerien()
+    : S.area === PORTFOLIO
+    ? pagePortfolio()
     : S.q.trim()
     ? srch + pageSearch()
     : srch + '<div style="height:12px"></div>' + pageNow() + pageProjects() + pagePersonal() + pageGoals() + pageOutline();
@@ -1597,6 +1623,85 @@ document.addEventListener('click', ev => {
     else { const e = (v.entries || []).find(e => e.id === st.dataset.vacStatus); if (e) e.status = e.status === 'entered' ? 'planned' : 'entered'; }
     v.updated = new Date().toISOString();
   }, 'dp: ferien edit');
+});
+
+/* ============================================================
+   PORTFOLIO TAB (DP-D16) — plan.portfolio = {updated, lines:[{id,name,area,project,payoff,payoff_chf,p,horizon,hours_left,hours_week,unlocks,verdict,source,note}]}
+   Where an hour of Chad's time is worth most. Kit drafts the lines; Chad corrects numbers and verdicts by tap.
+   ============================================================ */
+const PORTFOLIO = '__PORTFOLIO__';
+const VERDICTS = ['invest', 'protect', 'test', 'decide', 'maintain', 'cap', 'park'];
+const VERDICT_WORD = { invest: 'Invest now', protect: 'Protect the hours', test: 'Test cheaply', decide: 'Decide on time', maintain: 'Maintain', cap: 'Cap it', park: 'Park' };
+function pf() { return S.plan.portfolio || { updated: null, lines: [] }; }
+function pfEv(l) { return (l.payoff_chf > 0 && l.p != null && l.hours_left > 0) ? Math.round(l.payoff_chf * l.p / l.hours_left) : null; }
+function pfLines() {
+  return (pf().lines || []).slice().sort((a, b) => (VERDICTS.indexOf(a.verdict) - VERDICTS.indexOf(b.verdict)) || ((pfEv(b) || 0) - (pfEv(a) || 0)) || String(a.name).localeCompare(String(b.name)));
+}
+let pfEditing = null;
+function pagePortfolio() {
+  const lines = pfLines();
+  if (!lines.length) return '<h2 class="sec">Portfolio</h2><div class="card"><div class="empty">No portfolio yet — Kit drafts it from the plan and your answers (DP\\PORTFOLIO.md).</div></div>';
+  const hrs = lines.reduce((s, l) => s + (l.hours_week || 0), 0);
+  const invest = lines.filter(l => l.verdict === 'invest' || l.verdict === 'protect');
+  const fmtN = n => n == null ? '—' : Number(n).toLocaleString('de-CH');
+  let h = '<h2 class="sec">Portfolio <span class="note">where an hour of your time is worth most · tap a verdict to change it, Edit to correct the numbers</span></h2>' +
+    '<div class="card"><div class="pfsum">' +
+      '<div><div class="b">' + invest.length + '</div><div class="l">invest / protect</div></div>' +
+      '<div><div class="b">' + fmtN(hrs) + ' h</div><div class="l">hours per week, all lines</div></div>' +
+      '<div><div class="b">' + lines.filter(l => l.source === 'Chad').length + '/' + lines.length + '</div><div class="l">lines with your numbers</div></div>' +
+    '</div></div>' +
+    '<div class="card" style="margin-top:10px">' + lines.map(l => {
+      const ev = pfEv(l), editing = pfEditing === l.id;
+      return '<div class="pline" data-pf="' + esc(l.id) + '">' +
+        '<div class="hd"><span class="nm">' + esc(l.name) + '</span>' +
+          '<button class="vchip ' + esc(l.verdict) + '" data-pf-verdict="' + esc(l.id) + '" title="tap to change">' + esc(VERDICT_WORD[l.verdict] || l.verdict) + '</button>' +
+          '<span class="chip">' + (l.source === 'Chad' ? 'your numbers' : l.source === 'file' ? 'from the project' : 'Kit’s guess') + '</span></div>' +
+        (l.payoff ? '<div class="pay">' + esc(l.payoff) + '</div>' : '') +
+        '<div class="nums">' +
+          (l.payoff_chf ? '<span>payoff <b>CHF ' + fmtN(l.payoff_chf) + '</b></span>' : '<span>not priced in CHF</span>') +
+          (l.p != null ? '<span>odds <b>' + Math.round(l.p * 100) + '%</b></span>' : '') +
+          (l.hours_left ? '<span><b>' + fmtN(l.hours_left) + ' h</b> still needed</span>' : '') +
+          (l.hours_week != null ? '<span><b>' + fmtN(l.hours_week) + ' h</b>/week</span>' : '') +
+          (ev ? '<span>≈ <b>CHF ' + fmtN(ev) + '</b> per hour</span>' : '') +
+          (l.horizon ? '<span>' + esc(l.horizon) + '</span>' : '') + '</div>' +
+        (l.unlocks ? '<div class="unl">unlocks: ' + esc(l.unlocks) + '</div>' : '') +
+        (l.note ? '<div class="unl">' + esc(l.note) + '</div>' : '') +
+        '<div class="act"><button class="opt ghost" data-pf-edit="' + esc(l.id) + '">' + (editing ? 'Cancel' : 'Edit numbers') + '</button></div>' +
+        (editing ? '<form class="pfform" data-pf-form="' + esc(l.id) + '">' +
+          '<label>Payoff if it goes well, CHF<input type="number" name="payoff_chf" min="0" step="100" value="' + (l.payoff_chf == null ? '' : l.payoff_chf) + '"></label>' +
+          '<label>Odds it goes well, %<input type="number" name="p" min="0" max="100" step="5" value="' + (l.p == null ? '' : Math.round(l.p * 100)) + '"></label>' +
+          '<label>Hours still needed<input type="number" name="hours_left" min="0" step="1" value="' + (l.hours_left == null ? '' : l.hours_left) + '"></label>' +
+          '<label>Hours per week you give it<input type="number" name="hours_week" min="0" step="0.5" value="' + (l.hours_week == null ? '' : l.hours_week) + '"></label>' +
+          '<label class="full">Payoff in words<textarea name="payoff" rows="2">' + esc(l.payoff || '') + '</textarea></label>' +
+          '<label class="full">Your note<textarea name="note" rows="2">' + esc(l.note || '') + '</textarea></label>' +
+          '<div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button type="submit" class="opt">Save</button></div></form>' : '') +
+      '</div>';
+    }).join('') + '</div>' +
+    '<div class="note" style="padding:8px 4px">EV per hour = payoff × odds ÷ hours still needed. Lines without a franc payoff (health, family, a gate) are ranked by their verdict alone — they are what the money is for. Kit reads this page before every piece of advice.</div>';
+  return h;
+}
+document.addEventListener('click', ev => {
+  const v = ev.target.closest('[data-pf-verdict]'), e = ev.target.closest('[data-pf-edit]');
+  if (!v && !e) return;
+  if (e) { pfEditing = pfEditing === e.dataset.pfEdit ? null : e.dataset.pfEdit; render(); return; }
+  mutate(() => {
+    const l = (pf().lines || []).find(x => x.id === v.dataset.pfVerdict); if (!l) return;
+    l.verdict = VERDICTS[(VERDICTS.indexOf(l.verdict) + 1) % VERDICTS.length]; l.source = 'Chad';
+    S.plan.portfolio.updated = new Date().toISOString();
+  }, 'dp: portfolio verdict');
+});
+document.addEventListener('submit', ev => {
+  const f = ev.target.closest('[data-pf-form]'); if (!f) return;
+  ev.preventDefault();
+  const num = n => f.elements[n].value === '' ? null : Number(f.elements[n].value);
+  mutate(() => {
+    const l = (pf().lines || []).find(x => x.id === f.dataset.pfForm); if (!l) return;
+    l.payoff_chf = num('payoff_chf'); l.hours_left = num('hours_left'); l.hours_week = num('hours_week');
+    const pp = num('p'); l.p = pp == null ? null : Math.max(0, Math.min(1, pp / 100));
+    l.payoff = f.elements.payoff.value.trim(); l.note = f.elements.note.value.trim(); l.source = 'Chad';
+    S.plan.portfolio.updated = new Date().toISOString();
+  }, 'dp: portfolio edit');
+  pfEditing = null; render(); toast('Saved — your numbers now');
 });
 
 /* ============================================================
