@@ -331,9 +331,10 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
 .ptag.wealth{background:var(--accent)}.ptag.health{background:var(--good)}.ptag.love{background:var(--serious)}
 .pline .why{font-size:13.5px;color:var(--ink);margin-top:6px;line-height:1.5}
 .pline .serves{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.pline .bar{height:6px;border-radius:99px;background:var(--surface-2);margin-top:8px;overflow:hidden}
-.pline .bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
-.pline .barl{font-size:11px;color:var(--muted);margin-top:3px}
+.evrow{display:flex;align-items:center;gap:12px;margin-top:10px;padding:8px 10px;border-radius:10px;background:var(--surface-2)}
+.evbig{font-size:18px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+.evlbl{font-size:11px;color:var(--muted);line-height:1.4}
+.lnrow .evs{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
 .vpick{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .vpick .vchip{opacity:.55}.vpick .vchip.on{opacity:1;outline:2px solid var(--ink);outline-offset:1px}
 .vhelp{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5}
@@ -960,7 +961,7 @@ function linesCard() {
   if (!order.length) return '';
   return '<h2 class="sec">Then, by line <span class="note">where the hours go · tap for the why</span></h2><div class="card lines">' +
     order.map((l, n) => '<button class="lnrow" data-line="' + esc(l.id) + '"><span class="rk">' + (n + 1) + '</span>' +
-      '<span class="t">' + esc(headline(l.name, 90)) + '</span><span class="vchip ' + esc(l.verdict) + '">' + esc(VERDICT_WORD[l.verdict]) + '</span></button>').join('') + '</div>';
+      '<span class="t">' + esc(headline(l.name, 90)) + (pfEv(l) ? '<span class="evs">CHF ' + Number(pfEv(l)).toLocaleString('de-CH') + ' / h</span>' : '') + '</span><span class="vchip ' + esc(l.verdict) + '">' + esc(VERDICT_WORD[l.verdict]) + '</span></button>').join('') + '</div>';
 }
 
 /* the More tab: everything that is not about where your time goes next */
@@ -1711,14 +1712,13 @@ function pagePortfolio() {
             '<span class="chip">' + (l.source === 'Chad' ? 'your numbers' : l.source === 'file' ? 'from the project' : 'Kit’s guess') + '</span></div>' +
           (l.payoff ? '<div class="why">' + esc(l.payoff) + '</div>' : '') +
           '<div class="serves">' + (g ? '<span class="chip">serves ' + esc(g.id) + ' · ' + esc(g.goal.length > 48 ? g.goal.slice(0, 47) + '…' : g.goal) + '</span>' : '') +
-            (l.unlocks ? '<span class="chip">unlocks ' + esc(l.unlocks.length > 60 ? l.unlocks.slice(0, 59) + '…' : l.unlocks) + '</span>' : '') + '</div>' +
+            '</div>' + (l.unlocks ? '<div class="unl"><b>Holds up:</b> ' + esc(l.unlocks) + '</div>' : '') +
           '<div class="nums">' +
             (l.payoff_chf ? '<span>payoff <b>CHF ' + fmtN(l.payoff_chf) + '</b></span>' : '<span>not priced in CHF — ranked by verdict</span>') +
             (l.p != null ? '<span>odds <b>' + Math.round(l.p * 100) + '%</b></span>' : '') +
             (l.hours_left ? '<span><b>' + fmtN(l.hours_left) + ' h</b> still needed</span>' : '') +
-            (ev ? '<span>≈ <b>CHF ' + fmtN(ev) + '</b> per hour of yours</span>' : '') +
             (l.horizon ? '<span>' + esc(l.horizon) + '</span>' : '') + '</div>' +
-          (l.hours_week != null ? '<div class="bar"><i style="width:' + Math.round((l.hours_week || 0) / maxH * 100) + '%"></i></div><div class="barl">' + fmtN(l.hours_week) + ' h/week of your time</div>' : '') +
+          '<div class="evrow"><div class="evbig">' + (ev ? 'CHF ' + fmtN(ev) : (l.verdict === 'protect' ? 'fixed' : '—')) + '</div><div class="evlbl">' + (ev ? 'expected value per hour of yours<br>payoff × odds ÷ hours still needed' : (l.verdict === 'protect' ? 'a fixed block of your week, not ranked per hour' : 'not priced in francs — ranked by its verdict')) + '</div></div>' +
           (l.note ? '<div class="unl">' + esc(l.note) + '</div>' : '') +
           '<div class="act"><button class="opt ghost" data-pf-edit="' + esc(l.id) + '">' + (editing ? 'Close' : 'Edit numbers or verdict') + '</button></div>' +
           (editing ? '<div class="vpick">' + VERDICTS.map(v => '<button class="vchip ' + v + (v === l.verdict ? ' on' : '') + '" data-pf-pick="' + esc(l.id) + '" data-v="' + v + '">' + esc(VERDICT_WORD[v]) + '</button>').join('') + '</div>' +
