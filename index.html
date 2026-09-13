@@ -315,6 +315,13 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
 .pfsum .b{font-size:20px;font-weight:650}.pfsum .l{font-size:11px;color:var(--muted)}
 .rk{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:99px;background:var(--ink);color:var(--surface);font-size:12.5px;font-weight:700;flex:none}
 .rk.fixed{background:transparent;color:var(--muted);font-size:10px}
+.lnrow{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:11px 14px;border:0;border-top:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;font-size:13.5px;cursor:pointer}
+.lnrow:first-child{border-top:0}
+.lnrow .t{flex:1;min-width:0}
+.lnrow .vchip{cursor:pointer}
+.morefilt{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
+.morefilt button{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);border-radius:99px;background:transparent;color:var(--ink-2);cursor:pointer}
+.morefilt button.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .nowcard{margin-bottom:12px;padding:12px 14px}
 .nowhd{font-size:11.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .nowlist{margin:0;padding-left:22px;font-size:13.5px;line-height:1.7}
@@ -601,7 +608,7 @@ const FILE = {
    MODEL
    ============================================================ */
 const S = {
-  plan: null, sha: null, pass: null, cfg: null,
+  plan: null, sha: null, pass: null, cfg: null, tab: 'now',
   area: null, q: '', showDone: false,
   dirty: false, syncing: false, err: null, open: {}, sec: {},
   fileDirty: false, fileErr: null, gen: 0
@@ -898,7 +905,7 @@ function section(key, title, note, body, defOpen, count) {
     '</button>' + (open ? '<div class="blkbd">' + body + '</div>' : '') +
   '</section>';
 }
-const inArea = i => !S.area || i.area === S.area;
+const inArea = i => S.tab !== 'more' || !S.area || i.area === S.area;   // the area filter lives on the More tab; Now is never filtered
 
 /* ---------- the page ---------- */
 function pageSearch() {
@@ -910,6 +917,8 @@ function pageSearch() {
 }
 
 const isDelegated = i => String(i.lead || '').toLowerCase() === 'claude';
+/* The Now page answers one question: where does your time go next, and why. (Chad 13.09: "way too much information
+   and tabs — reduce to only the key points.") Priorities with why · the ordered lines · what needs your tap · the rest folded. */
 function pageNow() {
   const full = doNow();
   const list = full.filter(i => !isDelegated(i));
@@ -920,25 +929,11 @@ function pageNow() {
   const blk  = act.filter(isBlocked);
   const over = all.filter(isOverdue);
 
-  let h = '<div class="tiles">' +
-    tile(act.length, 'Active', 'var(--accent)') +
-    tile(wait.length, 'Waiting', 'var(--warning)') +
-    tile(blk.length, 'Blocked', 'var(--serious)') +
-    tile(over.length, 'Overdue', 'var(--critical)') + '</div>';
+  let h = prioritiesCard() + linesCard() + decisionsCard() + proposalsCard();
 
-  h += (S.plan.focus && S.plan.focus.as_of) ? focusBlock() : tellKit();
-  h += proposalsCard();
-
-  h += '<h2 class="sec">Do now <span class="note">top 5 unblocked, by priority</span></h2>' +
-       '<div class="card">' + (list.length
-         ? list.slice(0, 5).map((i, n) => itemRow(i, { rank: n + 1, why: true, hideStatus: true })).join('')
-         : '<div class="empty">Nothing active and unblocked here.</div>') + '</div>';
-
-  if (list.length > 5) {
-    h += section('next', 'Next up', '', '<div class="card">' +
-      list.slice(5, 14).map((i, n) => itemRow(i, { rank: n + 6, why: true, hideStatus: true })).join('') +
-      '</div>', true, list.length - 5);
-  }
+  h += section('todo', 'More to do', 'unblocked tasks, by priority', '<div class="card">' + (list.length
+         ? list.slice(0, 10).map((i, n) => itemRow(i, { rank: n + 1, why: true, hideStatus: true })).join('')
+         : '<div class="empty">Nothing active and unblocked.</div>') + '</div>', false, list.length);
   if (delegated.length) {
     h += section('delegated', 'Being done by Claude', 'not on your list — read the result when it lands', '<div class="card">' +
       delegated.map(i => itemRow(i, { hideStatus: true })).join('') + '</div>', false, delegated.length);
@@ -951,9 +946,33 @@ function pageNow() {
       wait.sort((a, c) => (a.due || '9999').localeCompare(c.due || '9999')).map(i => itemRow(i, { hideStatus: true })).join('') + '</div>';
     if (blk.length) b += '<h2 class="sec">Blocked by another task</h2><div class="card">' +
       blk.sort((a, c) => scoreOf(c) - scoreOf(a)).map(i => itemRow(i, { why: true })).join('') + '</div>';
-    h += section('attn', 'Needs attention', over.length ? over.length + ' overdue' : '', b, true, attention.length);
+    h += section('attn', 'Needs attention', over.length ? over.length + ' overdue' : '', b, false, attention.length);
   }
+  h += holdsSection();
+  h += tellKit();
   return h;
+}
+
+/* the ordered portfolio lines, compact — tap one to open it on the Portfolio tab */
+function linesCard() {
+  const lines = pfLines();
+  const order = lines.filter(l => ['invest', 'test', 'decide'].indexOf(l.verdict) >= 0);
+  if (!order.length) return '';
+  return '<h2 class="sec">Then, by line <span class="note">where the hours go · tap for the why</span></h2><div class="card lines">' +
+    order.map((l, n) => '<button class="lnrow" data-line="' + esc(l.id) + '"><span class="rk">' + (n + 1) + '</span>' +
+      '<span class="t">' + esc(headline(l.name, 90)) + '</span><span class="vchip ' + esc(l.verdict) + '">' + esc(VERDICT_WORD[l.verdict]) + '</span></button>').join('') + '</div>';
+}
+
+/* the More tab: everything that is not about where your time goes next */
+function pageMore() {
+  const areas = items().filter(i => i.type === 'A').map(i => i.title);
+  const filt = '<div class="morefilt"><button data-area="" class="' + (!S.area ? 'on' : '') + '">All</button>' +
+    areas.map(a => '<button data-area="' + esc(a) + '" class="' + (S.area === a ? 'on' : '') + '">' + esc(a.charAt(0) + a.slice(1).toLowerCase()) + '</button>').join('') + '</div>';
+  const srch = '<input class="srch" type="text" id="srch" placeholder="Search tasks and notes…" value="' + esc(S.q) + '" autocapitalize="off">';
+  if (S.q.trim()) return filt + srch + pageSearch();
+  return filt + srch + '<div style="height:12px"></div>' + agentsCard() + pageProjects() + pagePersonal() + pageGoals() + pageOutline() +
+    '<div class="card" style="margin-top:12px"><button class="lnrow" data-tab="ferien"><span class="t"><b>Ferien</b> — days off, the budget and what is left' +
+    (S.plan.vacation ? ' · ' + vacSums().left + ' left' : '') + '</span></button></div>';
 }
 
 /* ---------- proposals (DP-D15): Kit proposes, Chad approves with one tap; the same door dp.py approve uses ---------- */
@@ -1073,7 +1092,7 @@ document.addEventListener('submit', ev => {
 });
 
 function agentsCard() {
-  const cards = S.plan.projects || [];
+  const cards = (S.plan.projects || []).filter(p => S.tab !== 'more' || !S.area || p.area === S.area);   // respects the area filter on More
   if (!cards.length) return '';
   const runs = (S.plan.runs || []).slice().sort((a, b) => (b.requested_at || '').localeCompare(a.requested_at || ''));
   const active = runs.filter(r => r.status === 'queued' || r.status === 'running');
@@ -1126,11 +1145,11 @@ document.addEventListener('submit', ev => {
   toast('Queued — the ' + key + ' agent starts within a minute');
 });
 
-function focusBlock() {
+function prioritiesCard() {
   const f = S.plan.focus;
   if (!f || !f.as_of) return '';
   const m = byId();
-  let h = tellKit() + agentsCard();
+  let h = '';
   const pri = (f.priorities || []).map(x => ({ x, i: m[x.id] })).filter(o => o.i && !o.i.deleted && inArea(o.i));
   if (pri.length) {
     h += '<h2 class="sec">Your priorities <span class="note">' + (pri.length === 1 ? 'the one thing' : 'the two things') + ' · as of ' + fmtDate(f.as_of) + '</span></h2><div class="card focus">' +
@@ -1139,6 +1158,13 @@ function focusBlock() {
         (o.x.set_by && o.x.set_by !== 'engine' ? ' <span class="chip">set by ' + esc(o.x.set_by) + (o.x.engine_agrees === false ? ' · engine would pick differently' : '') + '</span>' : '') +
         '</div>' + replyBox(o.i)).join('') + '</div>';
   }
+  return h;
+}
+function decisionsCard() {
+  const f = S.plan.focus;
+  if (!f || !f.as_of) return '';
+  const m = byId();
+  let h = '';
   const dec = (f.decisions || []).map(d => ({ d, i: m[d.id] })).filter(o => o.i && !o.i.deleted && isOpen(o.i) && !o.i.answer && inArea(o.i));
   if (dec.length) {
     h += '<h2 class="sec">Decisions waiting on you <span class="note">minutes of yours unblock others\' weeks</span></h2><div class="card decisions">' +
@@ -1153,11 +1179,13 @@ function focusBlock() {
         replyBox(o.i) +
       '</div>').join('') + '</div>';
   }
-  const taken = items().filter(i => i.decision && i.answer && inArea(i)).sort((a, b) => (b.updated || '').localeCompare(a.updated || '')).slice(0, 5);
-  if (taken.length) {
-    h += '<div class="note" style="padding:6px 4px 12px">Decided recently — passed to the agents in their briefs: ' +
-      taken.map(i => '#' + i.id + ' ' + esc(headline(i.title, 50)) + ' \u2192 <b>' + esc(i.answer) + '</b>').join(' \u00b7 ') + '</div>';
-  }
+  return h;
+}
+function holdsSection() {
+  const f = S.plan.focus;
+  if (!f || !f.as_of) return '';
+  const m = byId();
+  let h = '';
   const holds = (f.holds || []).filter(x => x.kind !== 'project' || !S.area);
   const parked = holds.filter(x => x.kind === 'hold' && !(x.unlocks || []).length && /^parked/.test(String(x.held_by)));
   const shown = holds.filter(x => parked.indexOf(x) < 0 && (x.kind === 'project' || !x.id || (m[x.id] && inArea(m[x.id]))));
@@ -1303,29 +1331,26 @@ function render() {
   if (!S.plan) return;
   if (!S.sec) S.sec = {};
   renderBanner();
-  const areas = items().filter(i => i.type === 'A').map(i => i.title);
-  $('#hSub').textContent = S.area === FERIEN
+  if (S.area && String(S.area).startsWith('__')) S.area = null;       // old saved state from the tab-as-area days
+  if (['now', 'portfolio', 'more', 'ferien'].indexOf(S.tab) < 0) S.tab = 'now';
+  const f = S.plan.focus || {};
+  $('#hSub').textContent = S.tab === 'ferien'
     ? 'Ferien · ' + vacSums().left + ' days left'
-    : S.area === PORTFOLIO
+    : S.tab === 'portfolio'
     ? 'Portfolio · where your hours are worth most'
-    : (S.area || 'All areas') + ' · ' +
-      items().filter(i => isTask(i) && i.status === 'Active').length + ' active';
+    : S.tab === 'more'
+    ? (S.area || 'All areas') + ' · ' + items().filter(i => isTask(i) && i.status === 'Active').length + ' active'
+    : 'Now' + (f.as_of ? ' · as of ' + fmtDate(f.as_of) : '');
   $('#filters').innerHTML =
-    '<button data-area="" class="' + (!S.area ? 'on' : '') + '">All</button>' +
-    areas.map(a => '<button data-area="' + esc(a) + '" class="' + (S.area === a ? 'on' : '') + '">' +
-      esc(a.charAt(0) + a.slice(1).toLowerCase()) + '</button>').join('') +
-    '<button data-area="' + PORTFOLIO + '" class="' + (S.area === PORTFOLIO ? 'on' : '') + '">Portfolio</button>' +
-    '<button data-area="' + FERIEN + '" class="' + (S.area === FERIEN ? 'on' : '') + '">Ferien</button>';
+    '<button data-tab="now" class="' + (S.tab === 'now' ? 'on' : '') + '">Now</button>' +
+    '<button data-tab="portfolio" class="' + (S.tab === 'portfolio' ? 'on' : '') + '">Portfolio</button>' +
+    '<button data-tab="more" class="' + (S.tab === 'more' || S.tab === 'ferien' ? 'on' : '') + '">More</button>';
 
-  const srch = '<input class="srch" type="text" id="srch" placeholder="Search tasks and notes…" value="' + esc(S.q) + '" autocapitalize="off">';
-  $('#view').innerHTML = S.area === FERIEN
-    ? pageFerien()
-    : S.area === PORTFOLIO
-    ? pagePortfolio()
-    : S.q.trim()
-    ? srch + pageSearch()
-    : srch + '<div style="height:12px"></div>' + pageNow() + pageProjects() + pagePersonal() + pageGoals() + pageOutline();
-  LS.set(K.ui, { area: S.area, showDone: S.showDone, open: S.open, sec: S.sec });
+  $('#view').innerHTML = S.tab === 'ferien' ? pageFerien()
+    : S.tab === 'portfolio' ? pagePortfolio()
+    : S.tab === 'more' ? pageMore()
+    : '<div style="height:12px"></div>' + pageNow();
+  LS.set(K.ui, { area: S.area, tab: S.tab, showDone: S.showDone, open: S.open, sec: S.sec });
 }
 
 /* ============================================================
@@ -1740,8 +1765,10 @@ document.addEventListener('submit', ev => {
    EVENTS
    ============================================================ */
 document.addEventListener('click', ev => {
-  const t = ev.target.closest('[data-decide],[data-check],[data-open],[data-toggle],[data-sec],[data-area]');
+  const t = ev.target.closest('[data-decide],[data-check],[data-open],[data-toggle],[data-sec],[data-area],[data-tab],[data-line]');
   if (!t) return;
+  if (t.dataset.tab !== undefined) { S.tab = t.dataset.tab; render(); window.scrollTo(0, 0); return; }
+  if (t.dataset.line !== undefined) { S.tab = 'portfolio'; pfEditing = t.dataset.line; render(); const el = document.querySelector('.pline[data-pf="' + t.dataset.line + '"]'); if (el) el.scrollIntoView({ block: 'start' }); return; }
   if (t.dataset.decide !== undefined) {
     const i = byId()[Number(t.dataset.decide)]; if (!i) return;
     const n = Number(t.dataset.opt);
