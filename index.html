@@ -313,6 +313,13 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
 .pfform .full{grid-column:1/-1}
 .pfsum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 14px}
 .pfsum .b{font-size:20px;font-weight:650}.pfsum .l{font-size:11px;color:var(--muted)}
+.rk{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:99px;background:var(--ink);color:var(--surface);font-size:12.5px;font-weight:700;flex:none}
+.rk.fixed{background:transparent;color:var(--muted);font-size:10px}
+.nowcard{margin-bottom:12px;padding:12px 14px}
+.nowhd{font-size:11.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.nowlist{margin:0;padding-left:22px;font-size:13.5px;line-height:1.7}
+.nowlist .vchip{font-size:9.5px;padding:1px 7px;margin-left:4px;vertical-align:middle;cursor:default}
+.nownote{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
 .ptag{font-size:10.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:6px;color:#fff;background:var(--muted)}
 .ptag.wealth{background:var(--accent)}.ptag.health{background:var(--good)}.ptag.love{background:var(--serious)}
 .pline .why{font-size:13.5px;color:var(--ink);margin-top:6px;line-height:1.5}
@@ -1659,7 +1666,14 @@ function pagePortfolio() {
   const hrsOf = a => lines.filter(l => pillarsOf(l).indexOf(a) >= 0).reduce((s, l) => s + (l.hours_week || 0), 0);
   const maxH = Math.max(1, ...lines.map(l => l.hours_week || 0));
   const mine = lines.filter(l => l.source === 'Chad').length;
-  let h = '<h2 class="sec">Portfolio <span class="note">where an hour of your time is worth most · ' +
+  const WORK = ['invest', 'test', 'decide'];                         // verdicts that are work for Chad now; protect/maintain are fixed blocks, cap/park are not now
+  const order = lines.filter(l => WORK.indexOf(l.verdict) >= 0);
+  const rankOf = l => { const i = order.indexOf(l); return i < 0 ? null : i + 1; };
+  let h = (order.length ? '<div class="card nowcard"><div class="nowhd">Work on now, in this order</div><ol class="nowlist">' +
+      order.map(l => '<li><b>' + esc(headline(l.name, 80)) + '</b> <span class="vchip ' + esc(l.verdict) + '">' + esc(VERDICT_WORD[l.verdict]) + '</span></li>').join('') + '</ol>' +
+      '<div class="nownote">' + lines.filter(l => l.verdict === 'protect').map(l => esc(headline(l.name, 40))).join(' and ') + (lines.some(l => l.verdict === 'protect') ? ' are fixed blocks of your week, not in the queue. ' : '') +
+      'Cap and park lines get no time until something changes.</div></div>' : '') +
+    '<h2 class="sec">Portfolio <span class="note">where an hour of your time is worth most · ' +
     (mine < lines.length ? (lines.length - mine) + ' of ' + lines.length + ' lines still carry Kit’s guesses' : 'every line carries your numbers') + '</span></h2>' +
     '<div class="card"><div class="pfsum">' + PILLARS.map(p => '<div><div class="b">' + fmtN(hrsOf(p.area)) + ' h</div><div class="l">' + p.name.toLowerCase() + ' / week</div></div>').join('') + '</div></div>' +
     '<div class="card" style="margin-top:10px">' +
@@ -1667,7 +1681,7 @@ function pagePortfolio() {
         const ev = pfEv(l), editing = pfEditing === l.id, g = goal2032(l.goal);
         const tags = pillarsOf(l).map(a => { const p = PILLARS.find(x => x.area === a); return p ? '<span class="ptag ' + p.area.toLowerCase() + '">' + p.name + '</span>' : ''; }).join('');
         return '<div class="pline" data-pf="' + esc(l.id) + '">' +
-          '<div class="hd">' + tags + '<span class="nm">' + esc(l.name) + '</span>' +
+          '<div class="hd">' + (rankOf(l) ? '<span class="rk">' + rankOf(l) + '</span>' : (l.verdict === 'protect' ? '<span class="rk fixed" title="a fixed block of your week">■</span>' : '')) + tags + '<span class="nm">' + esc(l.name) + '</span>' +
             '<button class="vchip ' + esc(l.verdict) + '" data-pf-verdict="' + esc(l.id) + '" title="tap to choose a verdict">' + esc(VERDICT_WORD[l.verdict] || l.verdict) + '</button>' +
             '<span class="chip">' + (l.source === 'Chad' ? 'your numbers' : l.source === 'file' ? 'from the project' : 'Kit’s guess') + '</span></div>' +
           (l.payoff ? '<div class="why">' + esc(l.payoff) + '</div>' : '') +
