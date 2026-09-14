@@ -316,6 +316,10 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
 .pfsum .b{font-size:20px;font-weight:650}.pfsum .l{font-size:11px;color:var(--muted)}
 .rk{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:99px;background:var(--ink);color:var(--surface);font-size:12.5px;font-weight:700;flex:none}
 .rk.fixed{background:transparent;color:var(--muted);font-size:10px}
+.card.energy{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;margin-bottom:12px}
+.card.energy .q{font-size:13px;color:var(--ink-2);margin-right:4px}
+.card.energy .opt.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.card.energy .note{width:100%;font-size:12px;color:var(--muted)}
 .lnrow{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:11px 14px;border:0;border-top:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;font-size:13.5px;cursor:pointer}
 .lnrow:first-child{border-top:0}
 .lnrow .t{flex:1;min-width:0}
@@ -723,6 +727,8 @@ function mergePlans(mine, theirs) {
   if (mine.focus && ((mine.focus.stamp || '') > ((theirs.focus || {}).stamp || ''))) out.focus = mine.focus;
   // the vacation budget (Ferien tab) — one block, last write wins
   if (mine.vacation && ((mine.vacation.updated || '') > ((theirs.vacation || {}).updated || ''))) out.vacation = mine.vacation;
+  // capacity / energy (DP-D18) — one block, last write wins
+  if (mine.capacity && ((mine.capacity.updated || '') > ((theirs.capacity || {}).updated || ''))) out.capacity = mine.capacity;
   // the portfolio (DP-D16) — one block, last write wins
   if (mine.portfolio && ((mine.portfolio.updated || '') > ((theirs.portfolio || {}).updated || ''))) out.portfolio = mine.portfolio;
   // agent runs: union by id, the copy updated last wins (the runner on the PC writes progress)
@@ -931,7 +937,7 @@ function pageNow() {
   const blk  = act.filter(isBlocked);
   const over = all.filter(isOverdue);
 
-  let h = prioritiesCard() + linesCard() + decisionsCard() + proposalsCard();
+  let h = energyRow() + lowEnergyCard() + prioritiesCard() + linesCard() + decisionsCard() + proposalsCard();
 
   h += section('todo', 'More to do', 'unblocked tasks, by priority', '<div class="card">' + (list.length
          ? list.slice(0, 10).map((i, n) => itemRow(i, { rank: n + 1, why: true, hideStatus: true })).join('')
@@ -954,6 +960,35 @@ function pageNow() {
   h += tellKit();
   return h;
 }
+
+/* energy (DP-D18): how Chad feels today, one tap; Kit shapes its asks to it */
+const ENERGY = [['low', 'Tired'], ['ok', 'OK'], ['high', 'Sharp']];
+function energyToday() { const e = (S.plan.capacity || {}).energy; return e && String(e.at).slice(0, 10) === todayISO() ? e : null; }
+function energyRow() {
+  const e = energyToday();
+  return '<div class="card energy"><span class="q">' + (e ? 'Today you said' : 'How is your energy today?') + '</span>' +
+    ENERGY.map(([k, w]) => '<button class="opt' + (e && e.level === k ? ' on' : '') + '" data-energy="' + k + '">' + w + '</button>').join('') +
+    (e && e.level === 'low' ? '<span class="note">Kit keeps today to small things.</span>' : '') + '</div>';
+}
+function lowEnergyCard() {
+  const e = energyToday();
+  if (!e || e.level !== 'low') return '';
+  const small = doNow().filter(i => !isDelegated(i) && i.effort_h != null && Number(i.effort_h) <= 1).slice(0, 3);
+  return '<h2 class="sec">Tired today <span class="note">the small things that still move the plan — the big ones wait for a better day</span></h2><div class="card lowenergy">' +
+    (small.length ? small.map(i => itemRow(i, { hideStatus: true, why: true })).join('') :
+      '<div class="empty">Nothing small is unblocked. Rest — the plan can wait a day.</div>') + '</div>';
+}
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-energy]'); if (!b) return;
+  const level = b.dataset.energy, now = new Date().toISOString(), day = todayISO();
+  mutate(() => {
+    const cp = S.plan.capacity = S.plan.capacity || { history: [] };
+    const entry = { at: now, level: level, note: '' };
+    cp.history = (cp.history || []).filter(h => String(h.at).slice(0, 10) !== day).concat([entry]).slice(-60);
+    cp.energy = entry; cp.updated = now;
+  }, 'dp: energy ' + level);
+  toast(level === 'low' ? 'Noted — small things only today' : level === 'high' ? 'Good — the biggest item first' : 'Noted');
+});
 
 /* the ordered portfolio lines, compact — tap one to open it on the Portfolio tab */
 function linesCard() {
