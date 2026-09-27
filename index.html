@@ -1320,7 +1320,7 @@ function pageGoals() {
     '<div class="item"><div class="item-main"><div class="t">' + esc(r.goal) + '</div><div class="meta">' +
     '<span class="chip">' + esc(r.id) + '</span>' + (r.domain ? '<span class="chip">' + esc(r.domain) + '</span>' : '') +
     '</div></div></div>').join('') + '</div>';
-  return section('goals', 'Goals', 'to end Sept 2026', b, false);
+  return section('goals', 'Goals', ns.quarter_label || '', b, false);
 }
 
 function node(i, depth) {
