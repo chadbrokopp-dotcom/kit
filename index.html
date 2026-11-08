@@ -1334,20 +1334,36 @@ function node(i, depth) {
   return '<div class="node">' +
     '<button class="grp' + (open ? ' open' : '') + (depth ? ' d' + Math.min(depth, 4) : '') + '" data-toggle="' + i.id + '">' +
       '<span class="caret"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></span>' +
-      '<span class="typetag">' + esc(i.type) + '</span>' +
-      '<span class="lbl"><b>' + esc(i.title) + '</b>' + (i.obj || i.goal ? '<span>' + esc([i.obj, i.goal].filter(Boolean).join(' · ')) + '</span>' : '') + '</span>' +
+      '<span class="typetag">' + esc(TYPE_NAME[i.type] || i.type) + '</span>' +
+      '<span class="lbl"><b>' + esc(i.title) + '</b>' + (i.goal ? '<span>' + esc(goalLabel(i.goal)) + '</span>' : '') + '</span>' +
       '<span class="cnt">' + openTasks + '</span>' +
     '</button>' +
     (open ? '<div class="kids">' + kids.map(k => node(k, depth + 1)).join('') + '</div>' : '') +
   '</div>';
 }
 
+// The goal a milestone or objective serves, in words: a 2032 goal by its text, a quarter
+// goal by its id (the quarter list has the full line).
+function goalLabel(g) {
+  const ns = S.plan.north_star || {};
+  const big = (ns.goals_2032 || []).find(r => r.id === g);
+  return big ? g + ' · ' + big.goal : g;
+}
+// The plan as Chad reads it (08.11.2026): each area is a heading, and under it the
+// milestones, then objectives, then sets, then tasks. The area rows themselves are not
+// collapsible groups any more - a heading is enough, the milestones are the top.
 function pageOutline() {
-  const roots = items().filter(i => i.parent == null).filter(r => !S.area || r.title === S.area);
+  const areas = items().filter(i => i.parent == null).filter(r => !S.area || r.title === S.area);
+  const blocks = areas.map(a => {
+    const kids = childrenOf(a.id).filter(k => S.showDone || isOpen(k) || descendants(k.id).some(isOpen));
+    if (!kids.length) return '';
+    return '<h2 class="sec">' + esc(a.title.charAt(0) + a.title.slice(1).toLowerCase()) + '</h2>' +
+      '<div class="card">' + kids.map(k => node(k, 0)).join('') + '</div>';
+  }).join('');
   const b = '<label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink-2);margin:0 0 12px">' +
     '<input type="checkbox" id="tglDone" ' + (S.showDone ? 'checked' : '') + ' style="width:auto;margin:0"> Show done and dropped</label>' +
-    '<div class="card">' + roots.map(r => node(r, 0)).join('') + '</div>';
-  return section('outline', 'The whole plan', 'every level', b, false);
+    (blocks || '<div class="card"><div class="empty">Nothing open.</div></div>');
+  return section('outline', 'The whole plan', 'milestones · objectives · sets · tasks', b, false);
 }
 
 function renderBanner() {
