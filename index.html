@@ -325,6 +325,42 @@ h2.sec .note{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px
 .lnrow .t{flex:1;min-width:0}
 .lnrow .vchip{cursor:pointer}
 .morefilt{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
+/* ---------- the Plan tab: the F DP look (Chad, 08.11.2026) ----------
+   One dense funnel table, 11.5px, a dark header bar, rows shaded by type (area black,
+   objective dark, milestone mid-gray, set light), status in its Excel colours, overdue in red. */
+.plan-wrap{overflow-x:auto;border:1px solid var(--ring);border-radius:var(--r);background:#fff}
+table.plan{border-collapse:collapse;width:100%;min-width:760px;font-size:11.5px;line-height:1.3;color:#262626}
+table.plan th{background:#37474f;color:#fff;font-weight:700;font-size:10.5px;text-align:left;padding:5px 7px;white-space:nowrap;position:sticky;top:0}
+table.plan td{padding:3px 7px;border-bottom:1px solid #ececec;vertical-align:top}
+table.plan td.ty{font-weight:700;width:1%;white-space:nowrap;color:#7f7f7f;font-size:10px;letter-spacing:.04em}
+table.plan td.desc{min-width:260px;cursor:pointer}
+table.plan td.desc:hover{text-decoration:underline}
+table.plan td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.plan td.nw{white-space:nowrap}
+table.plan td.notes{color:#6b6b6b;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.plan tr.tA td{background:#000;color:#fff;font-weight:700;font-size:12.5px}
+table.plan tr.tO td{background:#404040;color:#fff;font-weight:700;font-size:12.5px}
+table.plan tr.tM td{background:#7f7f7f;color:#fff;font-weight:700;font-size:12.5px}
+table.plan tr.tD td{background:#bfbfbf;color:#262626;font-weight:700;font-size:12px}
+table.plan tr.tS td{background:#d9d9d9;color:#262626;font-weight:700;font-size:12px}
+table.plan tr.tG td{background:#e7e7e7;color:#262626;font-size:12px}
+table.plan tr.tW td{background:#d9d9d9;color:#262626;font-size:12px}
+table.plan tr.tX td{background:#ededed;color:#7f7f7f;font-weight:700}
+table.plan tr.tc td{color:#7f7f7f;font-style:italic}
+table.plan tr.tA td.ty,table.plan tr.tO td.ty,table.plan tr.tM td.ty{color:rgba(255,255,255,.75)}
+table.plan tr.tD td.ty,table.plan tr.tS td.ty{color:#595959}
+table.plan tr.closed td{color:#a6a6a6}
+table.plan tr.waiting td.desc,table.plan tr.waiting td.wait{color:#9c6500}
+table.plan tr.blocked td.desc{color:#9c6500;font-style:italic}
+table.plan td.st span{display:inline-block;padding:0 6px;border-radius:3px;font-size:10.5px;font-weight:600;white-space:nowrap}
+table.plan td.st .sActive{background:#c6efce;color:#006100}
+table.plan td.st .sWaiting{background:#ffeb9c;color:#9c6500}
+table.plan td.st .sHold{background:#ffc7ce;color:#9c0006}
+table.plan td.st .sOngoing{background:#e2efda;color:#548235;font-style:italic}
+table.plan td.st .sDone,table.plan td.st .sDropped{background:#eee;color:#a6a6a6}
+table.plan td.over{color:#c00000;font-weight:700}
+table.plan td.goal{white-space:nowrap;opacity:.85}
+.plan-note{font-size:12px;color:var(--ink-2);margin:0 0 10px}
 .morefilt button{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);border-radius:99px;background:transparent;color:var(--ink-2);cursor:pointer}
 .morefilt button.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .nowcard{margin-bottom:12px;padding:12px 14px}
@@ -1305,6 +1341,36 @@ function pagePersonal() {
     '<div class="card">' + rest.map(i => itemRow(i)).join('') + '</div>', true, rest.length);
 }
 
+/* ---------- the Plan tab: the whole plan as one funnel table, the way F DP.xlsx showed it (Chad, 08.11.2026) ---------- */
+function pagePlan() {
+  const areas = items().filter(i => i.type === 'A');
+  const filt = '<div class="morefilt"><button data-area="" class="' + (!S.area ? 'on' : '') + '">All</button>' +
+    areas.map(a => '<button data-area="' + esc(a.title) + '" class="' + (S.area === a.title ? 'on' : '') + '">' + esc(a.title.charAt(0) + a.title.slice(1).toLowerCase()) + '</button>').join('') +
+    '<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--ink-2);margin-left:auto"><input type="checkbox" id="tglDone" ' + (S.showDone ? 'checked' : '') + ' style="width:auto;margin:0"> Show done</label></div>';
+  const show = i => S.showDone || isOpen(i) || descendants(i.id).some(isOpen);
+  const rows = [];
+  const walk = (i, depth) => {
+    if (!show(i)) return;
+    rows.push([i, depth]);
+    childrenOf(i.id).forEach(k => walk(k, depth + 1));
+  };
+  areas.filter(a => !S.area || a.title === S.area).forEach(a => walk(a, 0));
+  const cell = (cls, html, title) => '<td class="' + cls + '"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + html + '</td>';
+  const body = rows.map(([i, depth]) => {
+    const task = isTask(i), closed = !isOpen(i), blocked = task && isBlocked(i);
+    const tr = ['t' + i.type, closed ? 'closed' : '', i.status === 'Waiting' ? 'waiting' : '', blocked ? 'blocked' : ''].filter(Boolean).join(' ');
+    const sc = task ? scoreOf(i) : null;
+    const due = i.due ? (isOverdue(i) ? cell('nw over', esc(fmtDate(i.due)), 'overdue') : cell('nw', esc(fmtDate(i.due)))) : cell('nw', '');
+    const st = i.status ? cell('st', '<span class="s' + esc(i.status) + '">' + esc(i.status) + '</span>') : cell('st', '');
+    const wait = cell('wait', esc(String(i.waiting_on || '').slice(0, 60)) + (blocked ? (i.waiting_on ? ' · ' : '') + 'blocked by ' + blockersOf(i).map(b => '#' + b.id).join(', ') : ''), i.waiting_on || '');
+    const desc = '<td class="desc" data-open="' + i.id + '" style="padding-left:' + (7 + depth * 14) + 'px">' + esc(i.title) + (i.decision && isOpen(i) ? ' <span style="font-weight:700">?</span>' : '') + '</td>';
+    return '<tr class="' + tr + '">' + cell('ty', esc(i.type)) + desc + cell('goal', esc(i.goal || '')) + cell('nw', esc(i.lead || '')) + st + wait + due +
+      cell('num', task ? (sc ? sc.toFixed(1) : '—') : '') + cell('notes', esc(String(i.notes || '').slice(0, 160)), i.notes || '') + cell('num', '#' + i.id) + '</tr>';
+  }).join('');
+  const table = '<div class="plan-wrap"><table class="plan"><thead><tr><th>Type</th><th>Description</th><th>Goal</th><th>Lead</th><th>Status</th><th>Waiting on / blocked</th><th>Due</th><th>Pri</th><th>Notes</th><th>ID</th></tr></thead><tbody>' + body + '</tbody></table></div>';
+  return filt + '<div class="plan-note">Milestones carry the 2032 goal they serve, objectives the quarter goal. Click a description to open the row.</div>' + table;
+}
+
 function pageGoals() {
   const ns = S.plan.north_star || {};
   const q = (ns.quarter || []).filter(r => r.id);
@@ -1388,21 +1454,25 @@ function render() {
   if (!S.sec) S.sec = {};
   renderBanner();
   if (S.area && String(S.area).startsWith('__')) S.area = null;       // old saved state from the tab-as-area days
-  if (['now', 'portfolio', 'more', 'ferien'].indexOf(S.tab) < 0) S.tab = 'now';
+  if (['now', 'plan', 'portfolio', 'more', 'ferien'].indexOf(S.tab) < 0) S.tab = 'now';
   const f = S.plan.focus || {};
   $('#hSub').textContent = S.tab === 'ferien'
     ? 'Ferien · ' + vacSums().left + ' days left'
     : S.tab === 'portfolio'
     ? 'Portfolio · where your hours are worth most'
+    : S.tab === 'plan'
+    ? 'Plan · ' + items().filter(i => isTask(i) && isOpen(i) && (!S.area || i.area === S.area)).length + ' open tasks'
     : S.tab === 'more'
     ? (S.area || 'All areas') + ' · ' + items().filter(i => isTask(i) && i.status === 'Active').length + ' active'
     : 'Now' + (f.as_of ? ' · as of ' + fmtDate(f.as_of) : '');
   $('#filters').innerHTML =
     '<button data-tab="now" class="' + (S.tab === 'now' ? 'on' : '') + '">Now</button>' +
+    '<button data-tab="plan" class="' + (S.tab === 'plan' ? 'on' : '') + '">Plan</button>' +
     '<button data-tab="portfolio" class="' + (S.tab === 'portfolio' ? 'on' : '') + '">Portfolio</button>' +
     '<button data-tab="more" class="' + (S.tab === 'more' || S.tab === 'ferien' ? 'on' : '') + '">More</button>';
 
   $('#view').innerHTML = S.tab === 'ferien' ? pageFerien()
+    : S.tab === 'plan' ? pagePlan()
     : S.tab === 'portfolio' ? pagePortfolio()
     : S.tab === 'more' ? pageMore()
     : '<div style="height:12px"></div>' + pageNow();
